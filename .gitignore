@@ -1,0 +1,33 @@
+# .gitignore
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment directories
+.venv/
+venv/
+env/
+ENV/
+venv.bak/
+ENV.bak/
+
+# Output directory from the script (adjust if different)
+rendered_tf/
+test_output/
+
+# Log files
+*.log
+
+# IDE / Editor specific files
+.idea/
+.vscode/
+*.swp
+*~
+
+# macOS specific files
+.DS_Store
+
+# Docker ignore - often handled by .dockerignore, but can add here too
+docker-compose.override.yml
