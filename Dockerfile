@@ -32,7 +32,7 @@ USER appuser
 # Define the entrypoint for the container.
 # This makes the container behave like an executable for the script.
 # Arguments passed to `docker run` will be appended to this command.
-ENTRYPOINT ["python", "./src/terraform_backend_manager.py"]
+ENTRYPOINT ["python", "./src/main.py"]
 
 # Example: To run the container later:
 # docker run --rm my-image:tag create \

@@ -27,11 +27,11 @@ BANNER_ART = r"""
 
 # --- Logging Setup ---
 logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT, stream=sys.stdout)
-file_handler = logging.FileHandler("terraform_backend_manager.log")
+file_handler = logging.FileHandler("statecraft.log")
 file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 logging.getLogger().addHandler(file_handler)
 
-logger = logging.getLogger(__name__)  # Use __name__ for logger identification
+logger = logging.getLogger(__name__)
 
 
 # --- S3 Functions ---
