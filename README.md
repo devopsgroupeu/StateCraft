@@ -14,6 +14,10 @@ Don't forget to configure credentials to your AWS account. Learn more [here](htt
 
 ##  Examples
 
+### S3 locking mechanisim
+
+> For Terraform version 1.9.0 or greater.
+
 ```sh
 py src/main.py create \
     --region eu-west-1 \
@@ -21,6 +25,7 @@ py src/main.py create \
     --locking-mechanism s3
 ```
 
+### DynamoDB locking mechanisim
 ```sh
 py src/main.py create \
     --region eu-west-1 \
