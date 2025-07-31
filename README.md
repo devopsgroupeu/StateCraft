@@ -13,6 +13,9 @@
 
 Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state.
 
+## Diagram
+![StateCraft diagram](./docs/img/statecraft.svg "StateCraft Diagram")
+
 ## 📝 Prerequisites
 
 ### 🔐 AWS Credentials
