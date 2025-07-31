@@ -32,7 +32,7 @@ jobs:
 
       - name: Set image name
         id: vars
-        run: echo "IMAGE_NAME=ghcr.io/${{ github.repository,, }}" >> "$GITHUB_OUTPUT"
+        run: echo "IMAGE_NAME=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         run: |
