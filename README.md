@@ -9,7 +9,7 @@
 ![GitHub Watchers](https://img.shields.io/github/watchers/devopsgroupeu/StateCraft)
 ![GitHub Issues](https://img.shields.io/github/issues/devopsgroupeu/StateCraft)
 ![GitHub Last Commit](https://img.shields.io/github/last-commit/devopsgroupeu/StateCraft)
-![Python Versions](https://img.shields.io/pypi/pyversions/:packageName) 
+![Python Versions](https://img.shields.io/pypi/pyversions/statecraft) 
 
 Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state.
 
