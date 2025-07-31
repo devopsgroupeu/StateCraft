@@ -19,26 +19,43 @@ Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backe
 
 Don't forget to configure credentials to your AWS account. Learn more [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html).
 
-## ⚙️ Examples
+## ⚙️ Usage
 
-### S3 locking mechanisim
+### Local
+
+#### S3 locking mechanisim
 
 > For **Terraform version 1.9.0 or greater**.
 
 ```sh
-py src/main.py create \
+python3 src/main.py \
+    create \ # or delete
     --region eu-west-1 \
     --bucket-name my-terraform-bucket \
     --locking-mechanism s3
 ```
 
-### DynamoDB locking mechanisim
+#### DynamoDB locking mechanisim
 ```sh
-py src/main.py create \
+python3 src/main.py \
+    create \ # or delete
     --region eu-west-1 \
     --bucket-name my-terraform-bucket \
     --table_name my-terraform-locking \
     --locking-mechanism dynamodb
+```
+
+### Docker
+
+```sh
+docker run --rm \
+    -e AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE \
+    -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+    -e AWS_DEFAULT_REGION=eu-west-1 \
+    ghcr.io/devopsgroupeu/statecraft:latest create \
+    --region eu-west-1 \
+    --bucket-name ara-test-s3 \
+    --table-name ara-test-dynamo
 ```
 
 ## 📜 License
@@ -59,21 +76,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
----
-
 ## 🤝 Contributing
 
 We welcome contributions from everyone!  
 Please see our [Contributing Guidelines](CONTRIBUTING.md) to get started.
 
----
-
 ## 📜 Code of Conduct
 
 Help us keep this community welcoming and respectful.  
 Read our [Code of Conduct](CODE_OF_CONDUCT.md) to understand the standards we uphold.
-
----
 
 ## 🗂️ Changelog
 
