@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0] - 2025-07-29
+## [0.1.0] - 2025-08-01
 ### Added
 - Initial public release
 - CLI for provisioning S3 and DynamoDB-based backends

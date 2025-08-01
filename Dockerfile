@@ -1,8 +1,14 @@
-# Dockerfile
+# Use a slim Python image for a smaller footprint
+FROM python:3.13-slim
 
-# Choose a suitable Python base image. Slim versions are smaller.
-# Use a specific version tag for reproducibility (e.g., 3.10, 3.11)
-FROM python:3.12-slim
+# Label the image with metadata
+# This helps with image identification and compliance
+LABEL org.opencontainers.image.title="statecraft" \
+      org.opencontainers.image.description="CLI tool for creation (or deletion) backend resources for Terraform on AWS" \
+      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.source="https://github.com/devopsgroupeu/StateCraft" \
+      org.opencontainers.image.authors="Andrej Rabek <andrej.rabek@devopsgroup.sk>" \
+      org.opencontainers.image.licenses="Apache-2.0"
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -33,9 +39,3 @@ USER appuser
 # This makes the container behave like an executable for the script.
 # Arguments passed to `docker run` will be appended to this command.
 ENTRYPOINT ["python", "./src/main.py"]
-
-# Example: To run the container later:
-# docker run --rm my-image:tag create \
-#   --region eu-west-1 \
-#   --bucket-name ara-test-s3 \
-#   --table-name ara-test-dynamo
