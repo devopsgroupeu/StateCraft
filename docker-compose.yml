@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  statecraft:
+    image: ghcr.io/devopsgroupeu/statecraft:latest
+    environment:
+      AWS_ACCESS_KEY_ID: ASIAIOSFODNN7EXAMPLE
+      AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      AWS_DEFAULT_REGION: eu-west-1
+    command: >
+      create # or delete
+      --region eu-west-1
+      --bucket-name my-terraform-bucket
+      --table-name my-terraform-locking
