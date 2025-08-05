@@ -1,8 +1,9 @@
 import argparse
 import logging
+import sys
+
 import boto3
 from botocore.exceptions import ClientError
-import sys
 
 # --- Configuration ---
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
@@ -12,16 +13,16 @@ BANNER_ART = r"""
 
 ███████╗████████╗ █████╗ ████████╗███████╗ ██████╗██████╗  █████╗ ███████╗████████╗
 ██╔════╝╚══██╔══╝██╔══██╗╚══██╔══╝██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
-███████╗   ██║   ███████║   ██║   █████╗  ██║     ██████╔╝███████║█████╗     ██║   
-╚════██║   ██║   ██╔══██║   ██║   ██╔══╝  ██║     ██╔══██╗██╔══██║██╔══╝     ██║   
-███████║   ██║   ██║  ██║   ██║   ███████╗╚██████╗██║  ██║██║  ██║██║        ██║   
-╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝   
+███████╗   ██║   ███████║   ██║   █████╗  ██║     ██████╔╝███████║█████╗     ██║
+╚════██║   ██║   ██╔══██║   ██║   ██╔══╝  ██║     ██╔══██╗██╔══██║██╔══╝     ██║
+███████║   ██║   ██║  ██║   ██║   ███████╗╚██████╗██║  ██║██║  ██║██║        ██║
+╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝
 
-                                      __          ___           ____           _____                 
-                                     / /  __ __  / _ \___ _  __/ __ \___  ___ / ___/______  __ _____ 
+                                      __          ___           ____           _____
+                                     / /  __ __  / _ \___ _  __/ __ \___  ___ / ___/______  __ _____
                                     / _ \/ // / / // / -_) |/ / /_/ / _ \(_-</ (_ / __/ _ \/ // / _ \
                                    /_.__/\_, / /____/\__/|___/\____/ .__/___/\___/_/  \___/\_,_/ .__/
-                                        /___/                     /_/                         /_/    
+                                        /___/                     /_/                         /_/
 
 """
 
@@ -117,7 +118,7 @@ def create_s3_bucket(s3_client, bucket_name, region):
             error_code == "IllegalLocationConstraintException" and region == "us-east-1"
         ):
             logging.error(
-                f"For 'us-east-1' region, do not specify LocationConstraint. Check Boto3/AWS behavior."
+                "For 'us-east-1' region, do not specify LocationConstraint. Check Boto3/AWS behavior."
             )
             return False  # Should ideally not happen with the check above
         else:

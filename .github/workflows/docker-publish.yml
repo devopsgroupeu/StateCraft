@@ -5,9 +5,9 @@ on:
     branches:
       - main
     paths:
-      - '**/Dockerfile'
-      - '.github/workflows/docker-publish.yml'
-      - '**/*.py'
+      - "**/Dockerfile"
+      - ".github/workflows/docker-publish.yml"
+      - "**/*.py"
   release:
     types: [published]
 
