@@ -2,18 +2,18 @@
 
 [![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/devopsgroup8/)
 
-
 ![GitHub License](https://img.shields.io/github/license/devopsgroupeu/StateCraft)
 ![GitHub Forks](https://img.shields.io/github/forks/devopsgroupeu/StateCraft)
 ![GitHub Stars](https://img.shields.io/github/stars/devopsgroupeu/StateCraft)
 ![GitHub Watchers](https://img.shields.io/github/watchers/devopsgroupeu/StateCraft)
 ![GitHub Issues](https://img.shields.io/github/issues/devopsgroupeu/StateCraft)
 ![GitHub Last Commit](https://img.shields.io/github/last-commit/devopsgroupeu/StateCraft)
-![Python Versions](https://img.shields.io/pypi/pyversions/statecraft) 
+![Python Versions](https://img.shields.io/pypi/pyversions/statecraft)
 
 Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state.
 
 ## Diagram
+
 ![StateCraft diagram](./docs/img/statecraft.svg "StateCraft Diagram")
 
 ## 📝 Prerequisites
@@ -28,7 +28,7 @@ Don't forget to configure credentials to your AWS account. Learn more [here](htt
 
 #### S3 locking mechanisim
 
-> For **Terraform version 1.9.0 or greater**.
+> For **Terraform version 1.11.0 or greater**.
 
 ```sh
 python3 src/main.py \
@@ -39,6 +39,7 @@ python3 src/main.py \
 ```
 
 #### DynamoDB locking mechanisim
+
 ```sh
 python3 src/main.py \
     create \ # or delete
@@ -57,8 +58,8 @@ docker run --rm \
     -e AWS_DEFAULT_REGION=eu-west-1 \
     ghcr.io/devopsgroupeu/statecraft:latest create \
     --region eu-west-1 \
-    --bucket-name ara-test-s3 \
-    --table-name ara-test-dynamo
+    --bucket-name my-terraform-bucket \
+    --table-name my-terraform-dynamodb
 ```
 
 ## 📜 License
@@ -81,12 +82,12 @@ limitations under the License.
 
 ## 🤝 Contributing
 
-We welcome contributions from everyone!  
+We welcome contributions from everyone!
 Please see our [Contributing Guidelines](CONTRIBUTING.md) to get started.
 
 ## 📜 Code of Conduct
 
-Help us keep this community welcoming and respectful.  
+Help us keep this community welcoming and respectful.
 Read our [Code of Conduct](CODE_OF_CONDUCT.md) to understand the standards we uphold.
 
 ## 🗂️ Changelog
