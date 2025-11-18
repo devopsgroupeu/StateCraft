@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.2.0] - 2025-11-18
+
+### Added
+
+- REST API server mode with FastAPI-based endpoints
+- Health check endpoint (`/health`) for monitoring
+- Resource creation endpoint (`/resources/create`)
+- Resource deletion endpoint (`/resources/delete`)
+- Dual-mode entrypoint supporting both CLI and server modes
+- Comprehensive API documentation with multiple authentication patterns
+- Security warnings and best practices for credential handling
+- Docker port exposure (8000) for API server mode
+
+### Changed
+
+- Updated Dockerfile to support both CLI and API server modes
+- Enhanced `docker-compose.yml` with separate services for CLI and server modes
+- Restructured application entry point to support mode selection
+
+### Removed
+
+- Nginx reverse proxy configuration and documentation
+- `docker-compose.production.yml` file for simplified deployment
+- Nginx-specific SSL certificate setup instructions
+
+### Security
+
+- Added SSL certificate patterns to `.gitignore`
+- Included comprehensive security warnings for production deployments
+- Documented IAM role usage as preferred authentication method
+
 ## [0.1.0] - 2025-08-01
 
 ### Added

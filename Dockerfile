@@ -4,7 +4,7 @@ FROM python:3.13-slim
 # Label the image with metadata
 LABEL org.opencontainers.image.title="statecraft" \
       org.opencontainers.image.description="CLI tool and API server for managing Terraform backend resources on AWS" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.version="0.2.0" \
       org.opencontainers.image.source="https://github.com/devopsgroupeu/StateCraft" \
       org.opencontainers.image.authors="Andrej Rabek <andrej.rabek@devopsgroup.sk>" \
       org.opencontainers.image.licenses="Apache-2.0"
