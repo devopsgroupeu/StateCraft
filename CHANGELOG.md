@@ -19,12 +19,6 @@
 - Enhanced `docker-compose.yml` with separate services for CLI and server modes
 - Restructured application entry point to support mode selection
 
-### Removed
-
-- Nginx reverse proxy configuration and documentation
-- `docker-compose.production.yml` file for simplified deployment
-- Nginx-specific SSL certificate setup instructions
-
 ### Security
 
 - Added SSL certificate patterns to `.gitignore`
