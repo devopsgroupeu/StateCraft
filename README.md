@@ -152,8 +152,8 @@ For production, replace self-signed certificates with certificates from **Let's 
 ### Security Best Practices
 
 1. **Production Deployment**:
-   - ✅ Use HTTPS with valid TLS certificates
-   - ✅ Deploy behind reverse proxy with rate limiting
+   - Use HTTPS with valid TLS certificates
+   - Deploy behind reverse proxy with rate limiting
    - Use AWS IAM roles instead of access keys when possible
    - Add authentication layer (OAuth2, API keys, mutual TLS)
 
