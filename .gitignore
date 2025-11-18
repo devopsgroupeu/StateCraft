@@ -31,3 +31,12 @@ test_output/
 
 # Docker ignore - often handled by .dockerignore, but can add here too
 docker-compose.override.yml
+
+# SSL certificates and private keys (NEVER commit these!)
+ssl/
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx

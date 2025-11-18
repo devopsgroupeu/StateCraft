@@ -2,12 +2,13 @@ import argparse
 import logging
 import sys
 
-import boto3
-from botocore.exceptions import ClientError
-
-# --- Configuration ---
-LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-LOG_LEVEL = logging.INFO  # Change to logging.DEBUG for more verbose output
+from core import (
+    create_dynamodb_table,
+    create_s3_bucket,
+    delete_dynamodb_table,
+    delete_s3_bucket,
+    get_aws_clients,
+)
 
 BANNER_ART = r"""
 
@@ -26,271 +27,7 @@ BANNER_ART = r"""
 
 """
 
-# --- Logging Setup ---
-logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT, stream=sys.stdout)
-file_handler = logging.FileHandler("statecraft.log")
-file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-logging.getLogger().addHandler(file_handler)
-
 logger = logging.getLogger(__name__)
-
-
-# --- S3 Functions ---
-def create_s3_bucket(s3_client, bucket_name, region):
-    """
-    Creates an S3 bucket configured for Terraform backend state.
-    Versioning is essential for both DynamoDB and native S3 locking.
-
-    Args:
-        s3_client: Initialized boto3 S3 client.
-        bucket_name (str): The name for the S3 bucket.
-        region (str): The AWS region to create the bucket in.
-
-    Returns:
-        bool: True if successful, False otherwise.
-    """
-    logging.info(
-        f"Attempting to create S3 bucket '{bucket_name}' in region '{region}'..."
-    )
-    try:
-        location_args = {}
-        if region != "us-east-1":
-            location_args["LocationConstraint"] = region
-
-        s3_client.create_bucket(
-            Bucket=bucket_name, CreateBucketConfiguration=location_args
-        )
-        logging.info(f"Bucket '{bucket_name}' created. Configuring settings...")
-
-        # Enable Versioning (CRITICAL for state integrity and native S3 locking)
-        s3_client.put_bucket_versioning(
-            Bucket=bucket_name, VersioningConfiguration={"Status": "Enabled"}
-        )
-        logging.info(f"- Versioning enabled for bucket '{bucket_name}'.")
-
-        # Enable Server-Side Encryption (AES256) - Recommended practice
-        s3_client.put_bucket_encryption(
-            Bucket=bucket_name,
-            ServerSideEncryptionConfiguration={
-                "Rules": [
-                    {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
-                ]
-            },
-        )
-        logging.info(
-            f"- Server-side encryption (AES256) enabled for bucket '{bucket_name}'."
-        )
-
-        # Block Public Access - Recommended security practice
-        s3_client.put_public_access_block(
-            Bucket=bucket_name,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": True,
-                "IgnorePublicAcls": True,
-                "BlockPublicPolicy": True,
-                "RestrictPublicBuckets": True,
-            },
-        )
-        logging.info(f"- Public access blocked for bucket '{bucket_name}'.")
-
-        logging.info(f"S3 bucket '{bucket_name}' created and configured successfully.")
-        return True
-
-    except ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code")
-        if error_code == "BucketAlreadyOwnedByYou":
-            logging.warning(
-                f"Bucket '{bucket_name}' already exists and is owned by you. Skipping creation."
-            )
-            # You might want to add checks here to ensure existing bucket config matches requirements (e.g., versioning)
-            return True
-        elif error_code == "BucketAlreadyExists":
-            logging.error(
-                f"Bucket name '{bucket_name}' already exists but is owned by someone else or in a different region setup."
-            )
-            return False
-        elif error_code == "InvalidBucketName":
-            logging.error(
-                f"Invalid bucket name: '{bucket_name}'. Please check AWS naming rules."
-            )
-            return False
-        elif (
-            error_code == "IllegalLocationConstraintException" and region == "us-east-1"
-        ):
-            logging.error(
-                "For 'us-east-1' region, do not specify LocationConstraint. Check Boto3/AWS behavior."
-            )
-            return False  # Should ideally not happen with the check above
-        else:
-            logging.error(
-                f"An unexpected error occurred creating bucket '{bucket_name}': {e}",
-                exc_info=True,
-            )
-            return False
-    except Exception as e:
-        logging.error(
-            f"An unexpected error occurred during S3 bucket creation: {e}",
-            exc_info=True,
-        )
-        return False
-
-
-def delete_s3_bucket(s3_client, s3_resource, bucket_name):
-    """
-    Deletes all objects and versions within an S3 bucket, then deletes the bucket.
-
-    Args:
-        s3_client: Initialized boto3 S3 client.
-        s3_resource: Initialized boto3 S3 resource.
-        bucket_name (str): The name of the S3 bucket to delete.
-
-    Returns:
-        bool: True if successful, False otherwise.
-    """
-    logging.info(f"Attempting to delete S3 bucket '{bucket_name}'...")
-    try:
-        bucket = s3_resource.Bucket(bucket_name)
-
-        # Check if bucket exists before attempting delete operations
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-            logging.info(f"Bucket '{bucket_name}' found. Proceeding with deletion.")
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                logging.warning(
-                    f"Bucket '{bucket_name}' does not exist. Skipping deletion."
-                )
-                return True
-            else:
-                logging.error(
-                    f"Error checking bucket existence for '{bucket_name}': {e}"
-                )
-                raise  # Re-raise other head_bucket errors
-
-        # Empty the bucket (delete all objects and versions)
-        logging.info(
-            f"Emptying bucket '{bucket_name}' (deleting all object versions)..."
-        )
-        # Using object_versions.delete() handles both versioned and unversioned objects within the bucket
-        deleted_count = 0
-        for obj_version in bucket.object_versions.all():
-            obj_version.delete()
-            deleted_count += 1
-        # Alternative/Simpler Boto3 call if preferred (less verbose):
-        # bucket.object_versions.delete()
-        logging.info(
-            f"Deleted {deleted_count} object versions from bucket '{bucket_name}'."
-        )
-
-        logging.info(f"Bucket '{bucket_name}' emptied. Deleting the bucket itself...")
-        bucket.delete()
-        logging.info(f"S3 bucket '{bucket_name}' deleted successfully.")
-        return True
-
-    except ClientError as e:
-        logging.error(
-            f"An error occurred deleting bucket '{bucket_name}': {e}", exc_info=True
-        )
-        return False
-    except Exception as e:
-        logging.error(
-            f"An unexpected error occurred during S3 bucket deletion: {e}",
-            exc_info=True,
-        )
-        return False
-
-
-# --- DynamoDB Functions ---
-
-
-def create_dynamodb_table(dynamodb_client, table_name):
-    """
-    Creates a DynamoDB table configured for Terraform state locking.
-
-    Args:
-        dynamodb_client: Initialized boto3 DynamoDB client.
-        table_name (str): The name for the DynamoDB table.
-
-    Returns:
-        bool: True if successful, False otherwise.
-    """
-    logging.info(f"Attempting to create DynamoDB table '{table_name}'...")
-    try:
-        dynamodb_client.create_table(
-            TableName=table_name,
-            AttributeDefinitions=[
-                {"AttributeName": "LockID", "AttributeType": "S"}  # S = String
-            ],
-            KeySchema=[
-                {"AttributeName": "LockID", "KeyType": "HASH"}  # HASH = Partition key
-            ],
-            BillingMode="PAY_PER_REQUEST",
-        )
-
-        logging.info(f"Waiting for table '{table_name}' to become active...")
-        waiter = dynamodb_client.get_waiter("table_exists")
-        waiter.wait(TableName=table_name, WaiterConfig={"Delay": 5, "MaxAttempts": 20})
-        logging.info(f"DynamoDB table '{table_name}' created successfully.")
-        return True
-
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "ResourceInUseException":
-            logging.warning(
-                f"DynamoDB table '{table_name}' already exists. Skipping creation."
-            )
-            # Optionally check schema here
-            return True
-        else:
-            logging.error(
-                f"An error occurred creating table '{table_name}': {e}", exc_info=True
-            )
-            return False
-    except Exception as e:
-        logging.error(
-            f"An unexpected error occurred during DynamoDB table creation: {e}",
-            exc_info=True,
-        )
-        return False
-
-
-def delete_dynamodb_table(dynamodb_client, table_name):
-    """
-    Deletes a DynamoDB table.
-
-    Args:
-        dynamodb_client: Initialized boto3 DynamoDB client.
-        table_name (str): The name of the DynamoDB table to delete.
-
-    Returns:
-        bool: True if successful, False otherwise.
-    """
-    logging.info(f"Attempting to delete DynamoDB table '{table_name}'...")
-    try:
-        dynamodb_client.delete_table(TableName=table_name)
-
-        logging.info(f"Waiting for table '{table_name}' to be deleted...")
-        waiter = dynamodb_client.get_waiter("table_not_exists")
-        waiter.wait(TableName=table_name, WaiterConfig={"Delay": 5, "MaxAttempts": 20})
-        logging.info(f"DynamoDB table '{table_name}' deleted successfully.")
-        return True
-
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "ResourceNotFoundException":
-            logging.warning(
-                f"DynamoDB table '{table_name}' does not exist. Skipping deletion."
-            )
-            return True
-        else:
-            logging.error(
-                f"An error occurred deleting table '{table_name}': {e}", exc_info=True
-            )
-            return False
-    except Exception as e:
-        logging.error(
-            f"An unexpected error occurred during DynamoDB table deletion: {e}",
-            exc_info=True,
-        )
-        return False
 
 
 def display_banner():
@@ -353,14 +90,12 @@ def main():
         print(f"  DynamoDB Table: {args.table_name}")
     print("-" * 105)
 
-    # --- Initialize Boto3 Clients ---
+    # Initialize AWS clients
     try:
-        session = boto3.Session(region_name=args.region)
-        s3_client = session.client("s3")
-        s3_resource = session.resource("s3")  # Needed for bucket emptying/deletion
-        dynamodb_client = None  # Initialize later only if needed
-        if args.locking_mechanism == "dynamodb":
-            dynamodb_client = session.client("dynamodb")
+        clients = get_aws_clients(args.region)
+        s3_client = clients["s3_client"]
+        s3_resource = clients["s3_resource"]
+        dynamodb_client = clients["dynamodb_client"]
     except Exception as e:
         logging.error(f"Error initializing AWS clients: {e}", exc_info=True)
         logging.error(

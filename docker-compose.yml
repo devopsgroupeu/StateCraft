@@ -1,14 +1,26 @@
 version: "3.8"
 
 services:
-  statecraft:
+  # CLI mode - create/delete resources
+  statecraft-cli:
     image: ghcr.io/devopsgroupeu/statecraft:latest
     environment:
       AWS_ACCESS_KEY_ID: ASIAIOSFODNN7EXAMPLE
       AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       AWS_DEFAULT_REGION: eu-west-1
     command: >
-      create # or delete
+      create
       --region eu-west-1
       --bucket-name my-terraform-bucket
       --table-name my-terraform-locking
+
+  # API server mode - REST API service
+  statecraft-server:
+    image: ghcr.io/devopsgroupeu/statecraft:latest
+    environment:
+      AWS_ACCESS_KEY_ID: ASIAIOSFODNN7EXAMPLE
+      AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      AWS_DEFAULT_REGION: eu-west-1
+    command: server
+    ports:
+      - "8000:8000"

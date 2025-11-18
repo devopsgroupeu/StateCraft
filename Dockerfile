@@ -2,10 +2,9 @@
 FROM python:3.13-slim
 
 # Label the image with metadata
-# This helps with image identification and compliance
 LABEL org.opencontainers.image.title="statecraft" \
-      org.opencontainers.image.description="CLI tool for creation (or deletion) backend resources for Terraform on AWS" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.description="CLI tool and API server for managing Terraform backend resources on AWS" \
+      org.opencontainers.image.version="0.2.0" \
       org.opencontainers.image.source="https://github.com/devopsgroupeu/StateCraft" \
       org.opencontainers.image.authors="Andrej Rabek <andrej.rabek@devopsgroup.sk>" \
       org.opencontainers.image.licenses="Apache-2.0"
@@ -35,7 +34,11 @@ RUN chown -R appuser:appgroup /app
 # Switch to the non-root user
 USER appuser
 
-# Define the entrypoint for the container.
-# This makes the container behave like an executable for the script.
-# Arguments passed to `docker run` will be appended to this command.
-ENTRYPOINT ["python", "./src/main.py"]
+# Expose port for API server mode
+EXPOSE 8000
+
+# Entrypoint supports both CLI and server modes
+# Server mode: docker run -p 8000:8000 <image> server
+# CLI mode: docker run <image> create --region eu-west-1 --bucket-name my-bucket ...
+ENTRYPOINT ["python", "-u", "./src/entrypoint.py"]
+CMD ["--help"]
