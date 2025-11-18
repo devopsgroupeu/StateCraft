@@ -12,6 +12,8 @@
 
 Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state.
 
+Available as both CLI tool and REST API server.
+
 ## Diagram
 
 ![StateCraft diagram](./docs/img/statecraft.svg "StateCraft Diagram")
@@ -51,6 +53,8 @@ python3 src/main.py \
 
 ### Docker
 
+#### CLI Mode
+
 ```sh
 docker run --rm \
     -e AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE \
@@ -61,6 +65,108 @@ docker run --rm \
     --bucket-name my-terraform-bucket \
     --table-name my-terraform-dynamodb
 ```
+
+#### API Server Mode
+
+**⚠️ SECURITY WARNING**: When sending AWS credentials via API requests:
+- **Always use HTTPS/TLS in production** to encrypt credentials in transit
+- Consider using **AWS STS temporary credentials** instead of long-lived access keys
+- Use **IAM roles** (e.g., ECS Task Role, EC2 Instance Profile) when running in AWS
+- Never log or persist credentials
+- Deploy behind a reverse proxy with TLS termination
+
+```sh
+docker run -d -p 8000:8000 \
+    ghcr.io/devopsgroupeu/statecraft:latest server
+```
+
+Access API documentation at `http://localhost:8000/docs`
+
+**Option 1: Per-request credentials (multi-account support):**
+```sh
+curl -X POST http://localhost:8000/resources/create \
+    -H "Content-Type: application/json" \
+    -d '{
+        "region": "eu-west-1",
+        "bucket_name": "my-terraform-bucket",
+        "table_name": "my-terraform-dynamodb",
+        "locking_mechanism": "dynamodb",
+        "aws_access_key_id": "ASIAIOSFODNN7EXAMPLE",
+        "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }'
+```
+
+**Option 2: Environment variables (single account, more secure):**
+```sh
+docker run -d -p 8000:8000 \
+    -e AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE \
+    -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+    ghcr.io/devopsgroupeu/statecraft:latest server
+
+curl -X POST http://localhost:8000/resources/create \
+    -H "Content-Type: application/json" \
+    -d '{
+        "region": "eu-west-1",
+        "bucket_name": "my-terraform-bucket",
+        "table_name": "my-terraform-dynamodb",
+        "locking_mechanism": "dynamodb"
+    }'
+```
+
+**Option 3: AWS IAM Roles (most secure for production):**
+```sh
+# When running on AWS (ECS, EC2, Lambda), use IAM roles - no credentials needed
+docker run -d -p 8000:8000 ghcr.io/devopsgroupeu/statecraft:latest server
+
+# Requests don't need credentials - automatically uses task/instance role
+curl -X POST http://localhost:8000/resources/create \
+    -H "Content-Type: application/json" \
+    -d '{
+        "region": "eu-west-1",
+        "bucket_name": "my-terraform-bucket",
+        "table_name": "my-terraform-dynamodb",
+        "locking_mechanism": "dynamodb"
+    }'
+```
+
+### Production Deployment with HTTPS
+
+Use the included `docker-compose.production.yml` for secure deployment:
+
+```sh
+# Generate self-signed certificates (for testing only)
+mkdir -p ssl
+openssl req -x509 -newkey rsa:4096 -nodes \
+  -keyout ssl/key.pem -out ssl/cert.pem -days 365 \
+  -subj "/CN=localhost"
+
+# Start with HTTPS enabled
+docker-compose -f docker-compose.production.yml up -d
+
+# Access via HTTPS
+curl -k https://localhost/health
+```
+
+For production, replace self-signed certificates with certificates from **Let's Encrypt** or your CA.
+
+### Security Best Practices
+
+1. **Production Deployment**:
+   - ✅ Use HTTPS with valid TLS certificates
+   - ✅ Deploy behind reverse proxy with rate limiting
+   - Use AWS IAM roles instead of access keys when possible
+   - Add authentication layer (OAuth2, API keys, mutual TLS)
+
+2. **Credential Management**:
+   - Prefer IAM roles > STS temporary credentials > long-lived access keys
+   - Rotate access keys regularly
+   - Use least-privilege IAM policies
+   - Never commit credentials to git
+
+3. **Monitoring**:
+   - Enable AWS CloudTrail for API auditing
+   - Monitor failed authentication attempts
+   - Set up alerts for unusual resource creation patterns
 
 ## 📜 License
 
