@@ -1,0 +1,42 @@
+apiVersion: v2
+name: statecraft
+description: AWS Terraform State Backend Infrastructure Manager - FastAPI microservice for managing S3 and DynamoDB resources
+type: application
+
+# Chart version - follows SemVer
+version: 0.3.0
+
+# Application version - matches StateCraft release version
+appVersion: "0.3.0"
+
+# Project links
+home: https://github.com/devopsgroupeu/statecraft
+sources:
+  - https://github.com/devopsgroupeu/statecraft
+
+# Keywords for chart discovery
+keywords:
+  - terraform
+  - aws
+  - state-backend
+  - infrastructure
+  - s3
+  - dynamodb
+  - fastapi
+  - python
+
+# Maintainers
+maintainers:
+  - name: DevOpsGroup
+    email: support@devopsgroup.eu
+
+# Annotations
+annotations:
+  category: Infrastructure
+  licenses: MIT
+
+# Minimum Kubernetes version
+kubeVersion: ">=1.19.0-0"
+
+# Dependencies (none for this chart)
+dependencies: []

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2025-11-19
+
+### Added
+
+- Helm chart for Kubernetes deployment with production-ready configuration
+- Support for Kubernetes deployment with configurable replicas, resources, and autoscaling
+- Service, Ingress, and ServiceAccount Kubernetes resources in Helm templates
+- Comprehensive Helm values with sensible defaults for cloud-native deployments
+
+### Fixed
+
+- Log file path changed to `/tmp/statecraft.log` for compatibility with Kubernetes read-only filesystems
+- Application now works correctly in containerized environments with restricted filesystem access
+
 ## [0.2.0] - 2025-11-18
 
 ### Added

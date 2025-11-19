@@ -11,7 +11,8 @@ LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 LOG_LEVEL = logging.INFO
 
 logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT, stream=sys.stdout)
-file_handler = logging.FileHandler("statecraft.log")
+# File handler writes to /tmp for Kubernetes read-only filesystems
+file_handler = logging.FileHandler("/tmp/statecraft.log")
 file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 logging.getLogger().addHandler(file_handler)
 

@@ -1,0 +1,185 @@
+# Default values for StateCraft
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Replica configuration
+replicaCount: 1
+
+# Container image configuration
+image:
+  repository: ghcr.io/devopsgroupeu/statecraft
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# Image pull secrets (for private registries)
+imagePullSecrets:
+  - name: ghcr-secret
+
+# Name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: statecraft.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: statecraft-tls
+  #    hosts:
+  #      - statecraft.local
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity configuration for pod distribution
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - statecraft
+        topologyKey: kubernetes.io/hostname
+
+# AWS credentials configuration
+# Option 1: Use existing secret (recommended for production)
+# Option 2: Create secret from values (for development only)
+aws:
+  # Use existing secret containing AWS credentials
+  existingSecret: ""
+  # Secret keys for AWS credentials (if using existing secret)
+  secretKeys:
+    accessKeyId: AWS_ACCESS_KEY_ID
+    secretAccessKey: AWS_SECRET_ACCESS_KEY
+    defaultRegion: AWS_DEFAULT_REGION
+  # Create secret from values (NOT recommended for production)
+  # Only use this for development/testing
+  credentials:
+    accessKeyId: ""
+    secretAccessKey: ""
+    defaultRegion: "us-east-1"
+  # Use IAM roles for Service Accounts (IRSA) - recommended for EKS
+  # When enabled, AWS credentials are automatically provided by EKS
+  useIRSA: false
+  # Service account annotations for IRSA
+  # Example: eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME
+  irsaRoleArn: ""
+
+# Application-specific configuration
+app:
+  # Environment variables for the application
+  env:
+    # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    LOG_LEVEL: "INFO"
+    # Additional environment variables can be added here
+
+# Health check configuration
+healthCheck:
+  enabled: true
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Network policy configuration
+networkPolicy:
+  enabled: false
+  # Ingress rules
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: default
+  # Egress rules (allow AWS API access)
+  egress:
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: 443
+    # DNS egress
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: UDP
+        port: 53
