@@ -13,7 +13,7 @@ We welcome contributions of all kinds:
 * Documentation improvements
 * Docker or CI improvements
 
-## 🙅‍♂️ What We’re Not Looking For
+## 🙅‍♂️ What We're Not Looking For
 
 Please avoid:
 
@@ -25,7 +25,7 @@ If unsure, open a *GitHub Issue* to talk first.
 
 ## 🔒 Code of Conduct
 
-Please review our [Code of Conduct](CODE_OF_CONDUCT.md) . We’re committed to fostering a safe, inclusive environment for everyone.
+Please review our [Code of Conduct](CODE_OF_CONDUCT.md). We're committed to fostering a safe, inclusive environment for everyone.
 
 ## 🚀 Your First Contribution
 
@@ -33,15 +33,15 @@ Please review our [Code of Conduct](CODE_OF_CONDUCT.md) . We’re committed to f
 
 * Fork the repo and clone it locally
 * Create a branch: `git checkout -b feature/your-feature`
-* Install dependencies: `pip install -r requirements.txt`
-* Format your code (we recommend black): `black src`
+* Install dependencies (see README.md for instructions)
+* Make your changes and test them
 * Push your branch and open a PR
 
 If your change is *non-trivial*, open an issue first so we can discuss.
 
 ### 🔁 Obvious Fix Policy
 
-You don’t need to open an issue for:
+You don't need to open an issue for:
 
 * Fixing typos or formatting
 * Comment updates
@@ -56,7 +56,7 @@ Found a bug? Please include:
 
 * Steps to reproduce
 * Expected vs actual behavior
-* Python version / OS
+* Environment details (OS, runtime version)
 * Any error messages or logs
 
 Security issue?
@@ -84,15 +84,12 @@ Open a GitHub Issue with **[Feature]** in the title if you'd like feedback befor
 * 💬 Join the discussion in GitHub Issues or Discussions
 * Maintained by [**DevOpsGroup s. r. o.**](https://devopsgroup.sk/)
 
-### ✍️ Style & Commit Conventions
+### ✍️ Commit Conventions
 
-* Python code: follow [PEP8](https://peps.python.org/pep-0008/)
-* Use Black for formatting
-* Commit messages:
-  * **feat**: for new features
-  * **fix**: for bug fixes
-  * **docs**: for documentation
-  * **refactor**: for refactoring
-  * **chore**: for maintenance
+* **feat**: for new features
+* **fix**: for bug fixes
+* **docs**: for documentation
+* **refactor**: for refactoring
+* **chore**: for maintenance
 
-We appreciate your time and contributions. Let’s build something great together 🚀
+We appreciate your time and contributions. Let's build something great together 🚀
