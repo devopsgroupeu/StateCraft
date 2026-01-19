@@ -55,7 +55,7 @@ jobs:
     - name: Push Helm Chart to GHCR
       run: |
         helm push .helm-releases/${{ steps.chart.outputs.name }}-${{ steps.chart.outputs.version }}.tgz \
-          oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
+          oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/helm
 
     - name: Summary
       run: |
@@ -63,4 +63,4 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Chart:** ${{ steps.chart.outputs.name }}" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** ${{ steps.chart.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Registry:** oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ steps.chart.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Registry:** oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/helm/${{ steps.chart.outputs.name }}" >> $GITHUB_STEP_SUMMARY
