@@ -13,8 +13,12 @@ image:
   tag: ""
 
 # Image pull secrets (for private registries)
-imagePullSecrets:
-  - name: ghcr-secret
+# Leave empty for public images
+imagePullSecrets: []
+
+# Command and args override (for server mode use: args: ["server"])
+command: []
+args: ["server"]
 
 # Name overrides
 nameOverride: ""
