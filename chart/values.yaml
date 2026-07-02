@@ -153,6 +153,18 @@ app:
     LOG_LEVEL: "INFO"
     # Additional environment variables can be added here
 
+# Additional environment variables in list form (supports valueFrom, e.g. a
+# secretKeyRef for the service auth token). Merged with app.env.
+extraEnv: []
+  # - name: SERVICE_TOKEN
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: openprime-service-token
+  #       key: SERVICE_TOKEN
+
+# Additional envFrom sources (e.g. a secretRef pulling all keys from a Secret).
+envFrom: []
+
 # Health check configuration
 healthCheck:
   enabled: true
