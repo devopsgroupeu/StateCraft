@@ -10,9 +10,10 @@ import logging
 from enum import Enum
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from auth import require_service_token
 from core import (
     create_dynamodb_table,
     create_s3_bucket,
@@ -95,7 +96,12 @@ async def health_check():
     }
 
 
-@app.post("/resources/create", response_model=ResourceResponse, tags=["Resources"])
+@app.post(
+    "/resources/create",
+    response_model=ResourceResponse,
+    tags=["Resources"],
+    dependencies=[Depends(require_service_token)],
+)
 async def create_resources(request: ResourceRequest):
     """Create S3 bucket and optionally DynamoDB table for Terraform backend.
 
@@ -160,7 +166,12 @@ async def create_resources(request: ResourceRequest):
     )
 
 
-@app.post("/resources/delete", response_model=ResourceResponse, tags=["Resources"])
+@app.post(
+    "/resources/delete",
+    response_model=ResourceResponse,
+    tags=["Resources"],
+    dependencies=[Depends(require_service_token)],
+)
 async def delete_resources(request: ResourceRequest):
     """Delete S3 bucket and optionally DynamoDB table.
 
