@@ -4,10 +4,10 @@ description: AWS Terraform State Backend Infrastructure Manager - FastAPI micros
 type: application
 
 # Chart version - follows SemVer
-version: 0.4.0
+version: 0.4.1
 
 # Application version - matches StateCraft release version
-appVersion: "0.3.0"
+appVersion: "0.3.1"
 
 # Project links
 home: https://github.com/devopsgroupeu/statecraft
