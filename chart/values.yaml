@@ -5,6 +5,14 @@
 # Replica configuration
 replicaCount: 1
 
+# Pod Disruption Budget - disabled by default because this chart defaults to a
+# single replica (a PDB would block node drains). Enable with minAvailable: 1
+# where the service runs >=2 replicas (as it does in production), or
+# maxUnavailable: 0 to deliberately protect a single stateful replica.
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
 # Container image configuration
 image:
   repository: ghcr.io/devopsgroupeu/statecraft
