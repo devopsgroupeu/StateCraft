@@ -188,12 +188,16 @@ healthCheck:
 # Network policy configuration
 networkPolicy:
   enabled: false
-  # Ingress rules
+  # Ingress rules — only the OpenPrime backend may call StateCraft, on the
+  # service port (defense-in-depth alongside the X-Service-Token auth).
   ingress:
     - from:
-      - namespaceSelector:
-          matchLabels:
-            name: default
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: openprime-app-backend
+      ports:
+        - protocol: TCP
+          port: 8000
   # Egress rules (allow AWS API access)
   egress:
     - to:
