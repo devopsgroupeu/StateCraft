@@ -1,6 +1,7 @@
 """Core business logic for StateCraft - shared by CLI and API."""
 
 import logging
+import os
 import sys
 
 import boto3
@@ -18,8 +19,60 @@ logging.getLogger().addHandler(file_handler)
 
 logger = logging.getLogger(__name__)
 
+# --- Ownership / destructive-delete guards -----------------------------------
+# StateCraft tags every bucket it creates so delete can refuse anything it did
+# not create. Delete additionally requires the name to match an allowed marker
+# and an explicit confirm token (see api.delete_resources).
+MANAGED_BY_KEY = "ManagedBy"
+MANAGED_BY_VALUE = "statecraft"
 
-def create_s3_bucket(s3_client, bucket_name, region):
+
+def managed_tagset(environment=None, owner=None):
+    """Ownership tags applied to every StateCraft-created bucket."""
+    tags = [{"Key": MANAGED_BY_KEY, "Value": MANAGED_BY_VALUE}]
+    if environment:
+        tags.append({"Key": "OpenPrimeEnv", "Value": str(environment)})
+    if owner:
+        tags.append({"Key": "Owner", "Value": str(owner)})
+    return tags
+
+
+def allowed_bucket_markers():
+    """Substrings a bucket name must contain to be deletable.
+
+    Configurable via STATECRAFT_DELETE_ALLOWED_MARKERS (comma-separated);
+    defaults to the StateCraft Terraform-backend naming marker.
+    """
+    raw = os.getenv("STATECRAFT_DELETE_ALLOWED_MARKERS", "-terraform-")
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def delete_target_is_allowed(bucket_name, markers=None):
+    """True if the bucket name matches the delete allow-list (pure)."""
+    markers = markers if markers is not None else allowed_bucket_markers()
+    return any(marker in bucket_name for marker in markers)
+
+
+def bucket_is_statecraft_managed(s3_client, bucket_name):
+    """True only if the bucket carries the ManagedBy=statecraft tag.
+
+    A bucket with no tag set, or owned by something else, returns False so it
+    can never be deleted through StateCraft.
+    """
+    try:
+        resp = s3_client.get_bucket_tagging(Bucket=bucket_name)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        if code in ("NoSuchTagSet", "NoSuchBucket"):
+            return False
+        raise
+    for tag in resp.get("TagSet", []):
+        if tag.get("Key") == MANAGED_BY_KEY and tag.get("Value") == MANAGED_BY_VALUE:
+            return True
+    return False
+
+
+def create_s3_bucket(s3_client, bucket_name, region, tags=None):
     """Creates S3 bucket configured for Terraform backend state with versioning and encryption."""
     logging.info(
         f"Attempting to create S3 bucket '{bucket_name}' in region '{region}'..."
@@ -61,6 +114,12 @@ def create_s3_bucket(s3_client, bucket_name, region):
             },
         )
         logging.info(f"- Public access blocked for bucket '{bucket_name}'.")
+
+        s3_client.put_bucket_tagging(
+            Bucket=bucket_name,
+            Tagging={"TagSet": tags if tags is not None else managed_tagset()},
+        )
+        logging.info(f"- Ownership tags applied to bucket '{bucket_name}'.")
 
         logging.info(f"S3 bucket '{bucket_name}' created and configured successfully.")
         return True
