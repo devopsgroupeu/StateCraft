@@ -15,11 +15,14 @@ from pydantic import BaseModel, Field
 
 from auth import require_service_token
 from core import (
+    bucket_is_statecraft_managed,
     create_dynamodb_table,
     create_s3_bucket,
     delete_dynamodb_table,
     delete_s3_bucket,
+    delete_target_is_allowed,
     get_aws_clients,
+    managed_tagset,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,6 +60,21 @@ class ResourceRequest(BaseModel):
     aws_secret_access_key: Optional[str] = Field(
         None,
         description="AWS secret access key (optional, falls back to environment). Use HTTPS in production!"
+    )
+    # Ownership metadata — tagged onto created buckets so delete can verify ownership.
+    environment: Optional[str] = Field(
+        None, description="OpenPrime environment id (tagged as OpenPrimeEnv on create)"
+    )
+    owner: Optional[str] = Field(
+        None, description="Requesting user/identity (tagged as Owner; logged on delete)"
+    )
+    # Destructive-delete guards (ignored on create).
+    confirm: Optional[str] = Field(
+        None,
+        description="Delete only: must equal bucket_name to authorize destruction",
+    )
+    dry_run: bool = Field(
+        False, description="Delete only: report what would be deleted without deleting"
     )
 
     class Config:
@@ -127,7 +145,10 @@ async def create_resources(request: ResourceRequest):
         )
 
     s3_success = create_s3_bucket(
-        clients["s3_client"], request.bucket_name, request.region
+        clients["s3_client"],
+        request.bucket_name,
+        request.region,
+        tags=managed_tagset(request.environment, request.owner),
     )
 
     dynamodb_success = True
@@ -175,8 +196,31 @@ async def create_resources(request: ResourceRequest):
 async def delete_resources(request: ResourceRequest):
     """Delete S3 bucket and optionally DynamoDB table.
 
-    AWS credentials can be provided in the request or via environment variables.
+    Guarded against accidental/malicious destruction: the caller must echo the
+    bucket name in `confirm`, the name must match the delete allow-list, and the
+    bucket must carry the StateCraft ownership tag. `dry_run` reports without deleting.
     """
+    # Audit every destructive request (identity via the shared service token +
+    # the caller-supplied owner/environment).
+    logger.warning(
+        "Delete requested: bucket=%s env=%s owner=%s dry_run=%s",
+        request.bucket_name,
+        request.environment,
+        request.owner,
+        request.dry_run,
+    )
+
+    if request.confirm != request.bucket_name:
+        raise HTTPException(
+            status_code=400,
+            detail="confirm must equal bucket_name to authorize deletion",
+        )
+    if not delete_target_is_allowed(request.bucket_name):
+        raise HTTPException(
+            status_code=400,
+            detail="bucket_name is not in the StateCraft delete allow-list",
+        )
+
     try:
         clients = get_aws_clients(
             request.region,
@@ -188,6 +232,24 @@ async def delete_resources(request: ResourceRequest):
         raise HTTPException(
             status_code=500,
             detail="Failed to initialize AWS clients. Check AWS credentials configuration.",
+        )
+
+    # Never delete a bucket StateCraft did not create.
+    if not bucket_is_statecraft_managed(clients["s3_client"], request.bucket_name):
+        logger.warning(
+            "Refusing to delete unmanaged bucket '%s' (missing ManagedBy=statecraft tag)",
+            request.bucket_name,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Refusing to delete a bucket not tagged ManagedBy=statecraft",
+        )
+
+    if request.dry_run:
+        return ResourceResponse(
+            success=True,
+            message=f"Dry run: '{request.bucket_name}' is managed, confirmed and allowed — it would be deleted.",
+            details={"bucket_name": request.bucket_name, "dry_run": True},
         )
 
     dynamodb_success = True
