@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0](https://github.com/devopsgroupeu/StateCraft/compare/v0.4.4...v0.5.0) (2026-07-07)
+
+### 🚀 Features
+
+* **logging:** unified JSON logs with cross-service request-id correlation ([#15](https://github.com/devopsgroupeu/StateCraft/issues/15)) ([6692046](https://github.com/devopsgroupeu/StateCraft/commit/66920469ae4d115656119717453ebd161a657b03))
+
 ## [0.4.4](https://github.com/devopsgroupeu/StateCraft/compare/v0.4.3...v0.4.4) (2026-07-07)
 
 ### 🏗️ Build System
