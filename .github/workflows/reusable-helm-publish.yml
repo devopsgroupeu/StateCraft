@@ -60,8 +60,9 @@ jobs:
             IMAGE_TAG="$VERSION"
           fi
 
-          # Chart version tracks the semantic-release version; appVersion is left as-is.
+          # Chart version and appVersion both track the semantic-release version.
           sed -i "s/^version:.*/version: ${VERSION}/" ${{ inputs.chart-path }}/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${IMAGE_TAG}\"/" ${{ inputs.chart-path }}/Chart.yaml
 
           # Point the chart image at the published, version-pinned tag (top-level image block).
           sed -i "s|^  repository:.*|  repository: ${{ inputs.registry }}/${{ inputs.image-name }}|" ${{ inputs.chart-path }}/values.yaml
