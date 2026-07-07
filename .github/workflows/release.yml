@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Force fetch tags
+        run: git fetch --tags --force
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Semantic Release
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx semantic-release > semantic-release.log 2>&1
+          cat semantic-release.log
+          if grep -q "Published release" semantic-release.log; then
+            echo "new_release_published=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_release_published=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract version
+        id: version
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+  publish-docker:
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
+    uses: ./.github/workflows/reusable-docker-publish.yml
+    with:
+      image_name: devopsgroupeu/statecraft
+      tags: |
+        type=semver,pattern={{version}},value=${{ needs.release.outputs.version }}
+        type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.version }}
+        type=semver,pattern={{major}},value=${{ needs.release.outputs.version }}
+        type=raw,value=latest
+
+  publish-helm:
+    needs: [release, publish-docker]
+    if: needs.release.outputs.new_release_published == 'true'
+    uses: ./.github/workflows/reusable-helm-publish.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+      image-tag: ${{ needs.release.outputs.version }}
+      image-name: devopsgroupeu/statecraft
+      package-name: statecraft
