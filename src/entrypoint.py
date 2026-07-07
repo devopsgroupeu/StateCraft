@@ -12,8 +12,8 @@ if __name__ == "__main__":
         # Remove 'server' from argv to avoid confusion
         sys.argv.pop(1)
 
-        # Start API server
-        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+        # Start API server (log_config=None → uvicorn logs use our root JSON logging)
+        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", log_config=None)
     else:
         # Run CLI mode
         from main import main

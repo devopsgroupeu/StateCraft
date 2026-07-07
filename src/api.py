@@ -7,13 +7,15 @@ SECURITY NOTICE:
 """
 
 import logging
+import uuid
 from enum import Enum
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from auth import require_service_token
+from logs import request_id_var
 from core import (
     bucket_is_statecraft_managed,
     create_dynamodb_table,
@@ -32,6 +34,20 @@ app = FastAPI(
     description="Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state",
     version="1.0.0",
 )
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    """Bind the caller's X-Request-ID (or a new one) so it appears in every log
+    line for this request and correlates with the backend and other services."""
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+    token = request_id_var.set(request_id)
+    try:
+        response = await call_next(request)
+    finally:
+        request_id_var.reset(token)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 
 class LockingMechanism(str, Enum):
@@ -295,4 +311,4 @@ async def delete_resources(request: ResourceRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=None)
