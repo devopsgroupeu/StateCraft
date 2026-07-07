@@ -1,5 +1,15 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+## [0.4.4](https://github.com/devopsgroupeu/StateCraft/compare/v0.4.3...v0.4.4) (2026-07-07)
+
+### 🏗️ Build System
+
+* adopt semantic-release pipeline and enable CI (unified versioning) ([#14](https://github.com/devopsgroupeu/StateCraft/issues/14)) ([b5ad3f5](https://github.com/devopsgroupeu/StateCraft/commit/b5ad3f5da9673e9b3997e617e32ff29729a98859))
+
+# Changelog
+
 ## [0.3.0] - 2025-11-19
 
 ### Added

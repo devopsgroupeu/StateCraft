@@ -1,6 +1,6 @@
 {
   "name": "statecraft",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "private": true,
   "description": "StateCraft Terraform backend manager: Docker image and Helm chart",
   "devDependencies": {
