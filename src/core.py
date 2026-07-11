@@ -18,6 +18,51 @@ MANAGED_BY_KEY = "ManagedBy"
 MANAGED_BY_VALUE = "statecraft"
 
 
+class BucketCreationError(Exception):
+    """State-bucket creation failed. `message` is safe to surface to the user."""
+
+    def __init__(self, message, status_code=500):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+# Map known AWS error codes to a user-actionable message + HTTP status. Anything
+# not listed falls through to a generic 500 that still names the AWS error code.
+_BUCKET_ERROR_MESSAGES = {
+    "BucketAlreadyExists": (
+        "Bucket name '{name}' is already taken by another AWS account. S3 bucket "
+        "names are globally unique — use a different environment name or global prefix.",
+        409,
+    ),
+    "InvalidBucketName": (
+        "Invalid bucket name '{name}'. It must follow AWS S3 naming rules "
+        "(lowercase letters, numbers and hyphens; 3-63 characters).",
+        400,
+    ),
+    "AccessDenied": (
+        "Access denied creating the state bucket. The AWS credentials are missing "
+        "the required S3 permissions (s3:CreateBucket and related).",
+        403,
+    ),
+    "AllAccessDisabled": (
+        "Access denied creating the state bucket. The AWS credentials are missing "
+        "the required S3 permissions (s3:CreateBucket and related).",
+        403,
+    ),
+}
+
+
+def _bucket_error(error_code, bucket_name):
+    template, status = _BUCKET_ERROR_MESSAGES.get(
+        error_code,
+        ("Could not create the state bucket ({code}).", 500),
+    )
+    return BucketCreationError(
+        template.format(name=bucket_name, code=error_code or "unknown error"),
+        status_code=status,
+    )
+
+
 def managed_tagset(environment=None, owner=None):
     """Ownership tags applied to every StateCraft-created bucket."""
     tags = [{"Key": MANAGED_BY_KEY, "Value": MANAGED_BY_VALUE}]
@@ -64,22 +109,37 @@ def bucket_is_statecraft_managed(s3_client, bucket_name):
 
 
 def create_s3_bucket(s3_client, bucket_name, region, tags=None):
-    """Creates S3 bucket configured for Terraform backend state with versioning and encryption."""
-    logging.info(
-        f"Attempting to create S3 bucket '{bucket_name}' in region '{region}'..."
-    )
+    """Create (or reconcile) the S3 bucket for Terraform backend state.
+
+    Idempotent: if the bucket already exists and is owned by us, its
+    versioning / encryption / public-access-block / tags are re-applied, so a
+    retry after a partially-created bucket still ends fully configured.
+
+    Returns True on success; raises BucketCreationError (with a user-safe
+    message) on failure instead of collapsing the cause to a bare False.
+    """
+    logging.info(f"Ensuring S3 bucket '{bucket_name}' exists in region '{region}'...")
     try:
         # us-east-1 must NOT receive a CreateBucketConfiguration: an empty
         # LocationConstraint serializes to an empty XML element that real S3
         # rejects with MalformedXML. Only send the config for other regions.
         create_kwargs = {"Bucket": bucket_name}
         if region != "us-east-1":
-            create_kwargs["CreateBucketConfiguration"] = {
-                "LocationConstraint": region
-            }
+            create_kwargs["CreateBucketConfiguration"] = {"LocationConstraint": region}
 
-        s3_client.create_bucket(**create_kwargs)
-        logging.info(f"Bucket '{bucket_name}' created. Configuring settings...")
+        try:
+            s3_client.create_bucket(**create_kwargs)
+            logging.info(f"Bucket '{bucket_name}' created. Configuring settings...")
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code == "BucketAlreadyOwnedByYou":
+                # Retry-safe: fall through and (re)apply the configuration below
+                # so a bucket left half-configured by an earlier run is healed.
+                logging.warning(
+                    f"Bucket '{bucket_name}' already owned by you — reconciling configuration."
+                )
+            else:
+                raise _bucket_error(error_code, bucket_name)
 
         s3_client.put_bucket_versioning(
             Bucket=bucket_name, VersioningConfiguration={"Status": "Enabled"}
@@ -118,42 +178,23 @@ def create_s3_bucket(s3_client, bucket_name, region, tags=None):
         logging.info(f"S3 bucket '{bucket_name}' created and configured successfully.")
         return True
 
+    except BucketCreationError:
+        raise
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
-        if error_code == "BucketAlreadyOwnedByYou":
-            logging.warning(
-                f"Bucket '{bucket_name}' already exists and is owned by you. Skipping creation."
-            )
-            return True
-        elif error_code == "BucketAlreadyExists":
-            logging.error(
-                f"Bucket name '{bucket_name}' already exists but is owned by someone else or in a different region setup."
-            )
-            return False
-        elif error_code == "InvalidBucketName":
-            logging.error(
-                f"Invalid bucket name: '{bucket_name}'. Please check AWS naming rules."
-            )
-            return False
-        elif (
-            error_code == "IllegalLocationConstraintException" and region == "us-east-1"
-        ):
-            logging.error(
-                "For 'us-east-1' region, do not specify LocationConstraint. Check Boto3/AWS behavior."
-            )
-            return False
-        else:
-            logging.error(
-                f"An unexpected error occurred creating bucket '{bucket_name}': {e}",
-                exc_info=True,
-            )
-            return False
+        logging.error(
+            f"Failed to configure bucket '{bucket_name}' ({error_code}): {e}",
+            exc_info=True,
+        )
+        raise _bucket_error(error_code, bucket_name)
     except Exception as e:
         logging.error(
             f"An unexpected error occurred during S3 bucket creation: {e}",
             exc_info=True,
         )
-        return False
+        raise BucketCreationError(
+            f"Unexpected error creating the state bucket '{bucket_name}'."
+        )
 
 
 def delete_s3_bucket(s3_client, s3_resource, bucket_name):

@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from auth import require_service_token
 from logs import request_id_var
 from core import (
+    BucketCreationError,
     bucket_is_statecraft_managed,
     create_dynamodb_table,
     create_s3_bucket,
@@ -160,35 +161,32 @@ async def create_resources(request: ResourceRequest):
             detail="Failed to initialize AWS clients. Check AWS credentials configuration.",
         )
 
-    s3_success = create_s3_bucket(
-        clients["s3_client"],
-        request.bucket_name,
-        request.region,
-        tags=managed_tagset(request.environment, request.owner),
-    )
+    try:
+        create_s3_bucket(
+            clients["s3_client"],
+            request.bucket_name,
+            request.region,
+            tags=managed_tagset(request.environment, request.owner),
+        )
+    except BucketCreationError as e:
+        logger.error(f"S3 bucket creation failed: {e}")
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"message": str(e), "details": {"s3_bucket": "failed"}},
+        )
 
-    dynamodb_success = True
     if request.locking_mechanism == LockingMechanism.dynamodb:
         dynamodb_success = create_dynamodb_table(
             clients["dynamodb_client"], request.table_name
         )
-
-    overall_success = s3_success and dynamodb_success
-
-    if not overall_success:
-        details = {}
-        if not s3_success:
-            details["s3_bucket"] = "failed"
         if not dynamodb_success:
-            details["dynamodb_table"] = "failed"
-
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "message": "Resource creation failed",
-                "details": details,
-            },
-        )
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "DynamoDB lock table creation failed",
+                    "details": {"dynamodb_table": "failed"},
+                },
+            )
 
     return ResourceResponse(
         success=True,

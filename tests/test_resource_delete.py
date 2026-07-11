@@ -13,6 +13,7 @@ from fastapi import HTTPException
 
 from api import ResourceRequest, delete_resources
 from core import (
+    BucketCreationError,
     bucket_is_statecraft_managed,
     create_s3_bucket,
     delete_target_is_allowed,
@@ -103,6 +104,42 @@ def test_create_other_region_sets_location_constraint():
     assert create_s3_bucket(s3, BUCKET, "eu-west-1")
     kwargs = s3.create_bucket.call_args.kwargs
     assert kwargs["CreateBucketConfiguration"] == {"LocationConstraint": "eu-west-1"}
+
+
+def test_create_reconciles_config_when_bucket_already_owned():
+    # Retry-safety: an already-owned bucket must still get versioning/encryption/
+    # public-access-block/tags re-applied, healing a half-configured prior run.
+    s3 = MagicMock()
+    s3.create_bucket.side_effect = ClientError(
+        {"Error": {"Code": "BucketAlreadyOwnedByYou"}}, "CreateBucket"
+    )
+    assert create_s3_bucket(s3, BUCKET, REGION) is True
+    s3.put_bucket_versioning.assert_called_once()
+    s3.put_bucket_encryption.assert_called_once()
+    s3.put_public_access_block.assert_called_once()
+    s3.put_bucket_tagging.assert_called_once()
+
+
+def test_create_raises_meaningful_error_when_name_taken():
+    s3 = MagicMock()
+    s3.create_bucket.side_effect = ClientError(
+        {"Error": {"Code": "BucketAlreadyExists"}}, "CreateBucket"
+    )
+    with pytest.raises(BucketCreationError) as exc:
+        create_s3_bucket(s3, BUCKET, REGION)
+    assert exc.value.status_code == 409
+    assert "globally unique" in str(exc.value)
+    s3.put_bucket_versioning.assert_not_called()
+
+
+def test_create_raises_on_invalid_bucket_name():
+    s3 = MagicMock()
+    s3.create_bucket.side_effect = ClientError(
+        {"Error": {"Code": "InvalidBucketName"}}, "CreateBucket"
+    )
+    with pytest.raises(BucketCreationError) as exc:
+        create_s3_bucket(s3, BUCKET, REGION)
+    assert exc.value.status_code == 400
 
 
 # --- delete endpoint guards ----------------------------------------------
