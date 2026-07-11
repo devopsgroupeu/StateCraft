@@ -69,13 +69,16 @@ def create_s3_bucket(s3_client, bucket_name, region, tags=None):
         f"Attempting to create S3 bucket '{bucket_name}' in region '{region}'..."
     )
     try:
-        location_args = {}
+        # us-east-1 must NOT receive a CreateBucketConfiguration: an empty
+        # LocationConstraint serializes to an empty XML element that real S3
+        # rejects with MalformedXML. Only send the config for other regions.
+        create_kwargs = {"Bucket": bucket_name}
         if region != "us-east-1":
-            location_args["LocationConstraint"] = region
+            create_kwargs["CreateBucketConfiguration"] = {
+                "LocationConstraint": region
+            }
 
-        s3_client.create_bucket(
-            Bucket=bucket_name, CreateBucketConfiguration=location_args
-        )
+        s3_client.create_bucket(**create_kwargs)
         logging.info(f"Bucket '{bucket_name}' created. Configuring settings...")
 
         s3_client.put_bucket_versioning(

@@ -86,6 +86,25 @@ def test_create_applies_ownership_tags():
     assert sent["Owner"] == "alice"
 
 
+def test_create_us_east_1_omits_location_constraint():
+    # Regression: passing CreateBucketConfiguration={} for us-east-1 serializes
+    # to an empty XML element real S3 rejects with MalformedXML. The kwarg must
+    # be absent entirely for us-east-1.
+    s3 = MagicMock()
+    assert create_s3_bucket(s3, BUCKET, "us-east-1")
+    s3.create_bucket.assert_called_once()
+    kwargs = s3.create_bucket.call_args.kwargs
+    assert kwargs["Bucket"] == BUCKET
+    assert "CreateBucketConfiguration" not in kwargs
+
+
+def test_create_other_region_sets_location_constraint():
+    s3 = MagicMock()
+    assert create_s3_bucket(s3, BUCKET, "eu-west-1")
+    kwargs = s3.create_bucket.call_args.kwargs
+    assert kwargs["CreateBucketConfiguration"] == {"LocationConstraint": "eu-west-1"}
+
+
 # --- delete endpoint guards ----------------------------------------------
 
 
