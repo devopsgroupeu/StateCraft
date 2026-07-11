@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.0...v0.5.1) (2026-07-11)
+
+### 🐛 Bug Fixes
+
+* **statecraft:** harden state-bucket creation (us-east-1, retry-safety, error surfacing) ([#17](https://github.com/devopsgroupeu/StateCraft/issues/17)) ([02c2980](https://github.com/devopsgroupeu/StateCraft/commit/02c29804ecb99fe559eff3b495e1b103e7a24244))
+
 ## [0.5.0](https://github.com/devopsgroupeu/StateCraft/compare/v0.4.4...v0.5.0) (2026-07-07)
 
 ### 🚀 Features
