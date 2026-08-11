@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.1...v0.5.2) (2026-08-11)
+
+### 🐛 Bug Fixes
+
+* **packaging:** run StateCraft as a real package and report the running version ([#19](https://github.com/devopsgroupeu/StateCraft/issues/19)) ([074fe76](https://github.com/devopsgroupeu/StateCraft/commit/074fe76a4ac40e3dfc5df951afa72decfa58b618))
+
 ## [0.5.1](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.0...v0.5.1) (2026-07-11)
 
 ### 🐛 Bug Fixes
