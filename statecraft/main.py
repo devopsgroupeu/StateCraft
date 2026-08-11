@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from core import (
+from .core import (
     create_dynamodb_table,
     create_s3_bucket,
     delete_dynamodb_table,

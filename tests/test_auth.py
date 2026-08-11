@@ -1,6 +1,6 @@
 """Tests for the service-token authorization helper."""
 
-from auth import token_is_authorized
+from statecraft.auth import token_is_authorized
 
 
 def test_disabled_when_no_expected_token():

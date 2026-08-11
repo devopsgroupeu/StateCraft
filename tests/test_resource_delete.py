@@ -11,8 +11,8 @@ import pytest
 from botocore.exceptions import ClientError
 from fastapi import HTTPException
 
-from api import ResourceRequest, delete_resources
-from core import (
+from statecraft.api import ResourceRequest, delete_resources
+from statecraft.core import (
     BucketCreationError,
     bucket_is_statecraft_managed,
     create_s3_bucket,
@@ -175,7 +175,7 @@ def test_delete_rejects_disallowed_name():
     assert exc.value.status_code == 400
 
 
-@patch("api.get_aws_clients")
+@patch("statecraft.api.get_aws_clients")
 def test_delete_refuses_unmanaged_bucket(mock_clients):
     mock_clients.return_value = _clients(_s3_with_tags([]))  # no ManagedBy tag
     with pytest.raises(HTTPException) as exc:
@@ -183,8 +183,8 @@ def test_delete_refuses_unmanaged_bucket(mock_clients):
     assert exc.value.status_code == 403
 
 
-@patch("api.delete_s3_bucket")
-@patch("api.get_aws_clients")
+@patch("statecraft.api.delete_s3_bucket")
+@patch("statecraft.api.get_aws_clients")
 def test_delete_dry_run_does_not_delete(mock_clients, mock_delete):
     mock_clients.return_value = _clients(
         _s3_with_tags([{"Key": "ManagedBy", "Value": "statecraft"}])
@@ -194,8 +194,8 @@ def test_delete_dry_run_does_not_delete(mock_clients, mock_delete):
     mock_delete.assert_not_called()
 
 
-@patch("api.delete_s3_bucket", return_value=True)
-@patch("api.get_aws_clients")
+@patch("statecraft.api.delete_s3_bucket", return_value=True)
+@patch("statecraft.api.get_aws_clients")
 def test_delete_proceeds_when_managed_and_confirmed(mock_clients, mock_delete):
     mock_clients.return_value = _clients(
         _s3_with_tags([{"Key": "ManagedBy", "Value": "statecraft"}])

@@ -14,9 +14,10 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from auth import require_service_token
-from logs import request_id_var
-from core import (
+from .auth import require_service_token
+from .version import __version__
+from .logs import request_id_var
+from .core import (
     BucketCreationError,
     bucket_is_statecraft_managed,
     create_dynamodb_table,
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="StateCraft API",
     description="Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state",
-    version="1.0.0",
+    version=__version__,
 )
 
 
@@ -127,7 +128,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "StateCraft API",
-        "version": "1.0.0",
+        "version": __version__,
     }
 
 

@@ -16,7 +16,7 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from core import (
+from statecraft.core import (
     create_dynamodb_table,
     create_s3_bucket,
     delete_dynamodb_table,

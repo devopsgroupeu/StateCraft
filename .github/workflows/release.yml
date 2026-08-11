@@ -71,6 +71,8 @@ jobs:
         type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.version }}
         type=semver,pattern={{major}},value=${{ needs.release.outputs.version }}
         type=raw,value=latest
+      build-args: |
+        STATECRAFT_VERSION=${{ needs.release.outputs.version }}
 
   publish-helm:
     needs: [release, publish-docker]
