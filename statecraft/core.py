@@ -8,7 +8,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Structured JSON logging is configured on the root logger by the logs module.
-from logs import logger  # noqa: E402
+from .logs import logger  # noqa: E402
 
 # --- Ownership / destructive-delete guards -----------------------------------
 # StateCraft tags every bucket it creates so delete can refuse anything it did

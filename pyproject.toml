@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "statecraft"
+description = "Manages the S3 bucket and DynamoDB table backing Terraform remote state"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Andrej Rabek", email = "andrej.rabek@devopsgroup.sk" }]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/devopsgroupeu/StateCraft"
+
+[project.scripts]
+statecraft = "statecraft.main:main"
+
+[tool.setuptools]
+packages = ["statecraft"]
+
+[tool.setuptools.dynamic]
+version = { attr = "statecraft.version.__version__" }
+# requirements.txt stays the single source of runtime dependencies: it is what
+# the Dockerfile installs, and duplicating the list here is how the two drift.
+dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

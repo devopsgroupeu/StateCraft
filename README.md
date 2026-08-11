@@ -33,7 +33,7 @@ Don't forget to configure credentials to your AWS account. Learn more [here](htt
 > For **Terraform version 1.11.0 or greater**.
 
 ```sh
-python3 src/main.py \
+python3 -m statecraft.main \
     create \ # or delete
     --region eu-west-1 \
     --bucket-name my-terraform-bucket \
@@ -43,7 +43,7 @@ python3 src/main.py \
 #### DynamoDB locking mechanisim
 
 ```sh
-python3 src/main.py \
+python3 -m statecraft.main \
     create \ # or delete
     --region eu-west-1 \
     --bucket-name my-terraform-bucket \
