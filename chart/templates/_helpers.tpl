@@ -71,3 +71,17 @@ Create the name of the secret to use for AWS credentials
 {{- include "statecraft.fullname" . }}-aws
 {{- end }}
 {{- end }}
+
+{{/*
+NetworkPolicy ingress rule letting Prometheus scrape the metrics port. Rendered
+by the chart rather than listed in networkPolicy.ingress, because a values
+override of that list replaces it wholesale and would silently drop the rule.
+*/}}
+{{- define "statecraft.metricsScrapeRule" -}}
+- from:
+    - namespaceSelector:
+        {{- toYaml .Values.metrics.scrapeNamespaceSelector | nindent 8 }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.metrics.port }}
+{{- end }}

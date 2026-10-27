@@ -167,6 +167,34 @@ The following table lists the configurable parameters of the StateCraft chart an
 | `healthCheck.readinessProbe.httpGet.path` | Readiness probe path | `/health` |
 | `healthCheck.readinessProbe.initialDelaySeconds` | Initial delay for readiness probe | `10` |
 
+### Metrics
+
+Prometheus metrics are served on a **dedicated port**, separate from the API
+port: the endpoint is unauthenticated, so it must never be reachable through an
+ingress. The ServiceMonitor points at the `metrics` Service port, so a cluster
+running the Prometheus Operator picks it up with no further configuration. It is
+only rendered when the cluster serves `monitoring.coreos.com/v1`, so installing
+on a cluster without the Prometheus Operator does not fail.
+
+With the default `ClusterIP` Service the metrics port sits on the main Service.
+If `service.type` is `LoadBalancer` or `NodePort`, it moves to a separate
+`<fullname>-metrics` ClusterIP Service (e.g. `statecraft-metrics`) so it is never exposed outside
+the cluster.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `metrics.enabled` | Serve Prometheus metrics on the metrics port | `true` |
+| `metrics.port` | Metrics container and Service port | `9090` |
+| `metrics.scrapeNamespaceSelector` | Namespaces allowed to scrape the metrics port when `networkPolicy.enabled` | `kubernetes.io/metadata.name: monitoring` |
+| `serviceMonitor.enabled` | Create a ServiceMonitor (needs the monitoring.coreos.com CRDs) | `true` |
+| `serviceMonitor.interval` | Scrape interval | `30s` |
+| `serviceMonitor.path` | Scrape path | `/metrics` |
+
+Exposed metrics: `http_requests_total` and `http_request_duration_seconds`,
+both labelled by `method`, `route` (the matched route pattern) and
+`status_code`, plus the default Python process metrics. Probe traffic to
+`/health` is not counted.
+
 ### Network Policy
 
 | Parameter | Description | Default |
@@ -174,6 +202,11 @@ The following table lists the configurable parameters of the StateCraft chart an
 | `networkPolicy.enabled` | Enable network policies | `false` |
 | `networkPolicy.ingress` | Ingress network policy rules | See values.yaml |
 | `networkPolicy.egress` | Egress network policy rules | See values.yaml |
+
+When metrics are enabled the chart adds an ingress rule letting the namespaces
+matched by `metrics.scrapeNamespaceSelector` reach the metrics port. It is
+rendered by the chart, not listed in `networkPolicy.ingress`, so overriding that
+list cannot drop it.
 
 ## AWS Credentials Configuration
 

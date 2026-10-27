@@ -1,0 +1,32 @@
+{{- if and .Values.serviceMonitor.enabled .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "statecraft.fullname" . }}
+  labels:
+    {{- include "statecraft.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "statecraft.selectorLabels" . | nindent 6 }}
+  endpoints:
+    # "metrics" is the Service port NAME; the operator resolves it to the pod's
+    # metrics container port. No release label or namespaceSelector is needed:
+    # the cluster's Prometheus watches ServiceMonitors in every namespace with
+    # no selector (serviceMonitorSelectorNilUsesHelmValues: false).
+    - port: metrics
+      path: {{ .Values.serviceMonitor.path | default "/metrics" }}
+      interval: {{ .Values.serviceMonitor.interval | default "30s" }}
+      # When the main Service is externally reachable the metrics port moves to
+      # a separate "<fullname>-metrics" Service; report it under the main
+      # Service's name so dashboards and alerts see the same service either way.
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_service_name]
+          regex: (.+)-metrics
+          targetLabel: service
+          replacement: $1
+        - sourceLabels: [__meta_kubernetes_service_name]
+          regex: (.+)-metrics
+          targetLabel: job
+          replacement: $1
+{{- end }}

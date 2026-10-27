@@ -12,9 +12,14 @@ spec:
   policyTypes:
     - Ingress
     - Egress
-  {{- with .Values.networkPolicy.ingress }}
+  {{- if or .Values.networkPolicy.ingress .Values.metrics.enabled }}
   ingress:
+    {{- with .Values.networkPolicy.ingress }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.metrics.enabled }}
+    {{- include "statecraft.metricsScrapeRule" . | nindent 4 }}
+    {{- end }}
   {{- end }}
   {{- with .Values.networkPolicy.egress }}
   egress:

@@ -11,5 +11,13 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    {{- /* An externally reachable Service type would expose the unauthenticated
+    metrics port; metrics-service.yaml serves it in-cluster instead. */}}
+    {{- if and .Values.metrics.enabled (eq .Values.service.type "ClusterIP") }}
+    - port: {{ .Values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+    {{- end }}
   selector:
     {{- include "statecraft.selectorLabels" . | nindent 4 }}

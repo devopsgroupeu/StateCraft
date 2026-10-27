@@ -1,0 +1,20 @@
+{{- if and .Values.metrics.enabled (ne .Values.service.type "ClusterIP") }}
+# The main Service is externally reachable ({{ .Values.service.type }}), so the
+# unauthenticated metrics port gets its own in-cluster ClusterIP Service instead
+# of riding on it. The ServiceMonitor selects this one through the same labels.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "statecraft.fullname" . }}-metrics
+  labels:
+    {{- include "statecraft.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "statecraft.selectorLabels" . | nindent 4 }}
+{{- end }}

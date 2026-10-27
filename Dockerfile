@@ -48,6 +48,10 @@ USER appuser
 # Expose port for API server mode
 EXPOSE 8000
 
+# Prometheus metrics, served on their own port so they are never reachable
+# through whatever ingress fronts the API port (see statecraft/metrics.py)
+EXPOSE 9090
+
 # Entrypoint supports both CLI and server modes
 # Server mode: docker run -p 8000:8000 <image> server
 # CLI mode: docker run <image> create --region eu-west-1 --bucket-name my-bucket ...

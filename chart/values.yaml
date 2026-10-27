@@ -67,6 +67,31 @@ service:
   port: 80
   targetPort: 8000
 
+# Prometheus metrics, served by a second listener on a dedicated port. Kept off
+# the API port on purpose: the endpoint is unauthenticated, so it must never be
+# reachable through an ingress. Scraped in-cluster via the ServiceMonitor below.
+metrics:
+  enabled: true
+  port: 9090
+  # Namespaces allowed to scrape the metrics port when networkPolicy.enabled is
+  # set. The chart adds this rule itself, so overriding networkPolicy.ingress
+  # never drops it. Point it at wherever Prometheus runs: "monitoring" for this
+  # cluster's kube-prometheus-stack; e.g. kube-system for Azure Monitor managed
+  # Prometheus, gmp-system for GKE Managed Prometheus.
+  scrapeNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: monitoring
+
+# ServiceMonitor for the Prometheus Operator. Rendered only on a cluster that
+# serves monitoring.coreos.com/v1 (the Prometheus Operator CRDs), so installing
+# the chart on a cluster without them does not fail. The cluster's Prometheus
+# discovers ServiceMonitors in every namespace with no label selector
+# (serviceMonitorSelectorNilUsesHelmValues: false).
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+
 # Ingress configuration
 ingress:
   enabled: false
