@@ -8,6 +8,7 @@ SECURITY NOTICE:
 
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Optional
 
@@ -17,6 +18,7 @@ from pydantic import BaseModel, Field
 from .auth import require_service_token
 from .version import __version__
 from .logs import request_id_var
+from .metrics import metrics_middleware, start_metrics_server
 from .core import (
     BucketCreationError,
     bucket_is_statecraft_managed,
@@ -31,11 +33,26 @@ from .core import (
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Start the metrics listener in the process that serves requests.
+
+    Only API server mode runs the lifespan, so a one-off CLI invocation never
+    binds the metrics port.
+    """
+    start_metrics_server()
+    yield
+
+
 app = FastAPI(
     title="StateCraft API",
     description="Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state",
     version=__version__,
+    lifespan=lifespan,
 )
+
+app.middleware("http")(metrics_middleware)
 
 
 @app.middleware("http")
