@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.2...v0.6.0) (2026-10-28)
+
+### 🚀 Features
+
+* **metrics:** expose red metrics on a dedicated port (OP-176) ([#20](https://github.com/devopsgroupeu/StateCraft/issues/20)) ([9543bd5](https://github.com/devopsgroupeu/StateCraft/commit/9543bd5fda9ddd6255ec45c2f6fbd680e837ab70))
+
 ## [0.5.2](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.1...v0.5.2) (2026-08-11)
 
 ### 🐛 Bug Fixes
