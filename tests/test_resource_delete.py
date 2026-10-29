@@ -145,7 +145,13 @@ def test_create_raises_on_invalid_bucket_name():
 
 
 def _req(**kw):
-    base = dict(region=REGION, bucket_name=BUCKET, locking_mechanism="s3")
+    base = dict(
+        region=REGION,
+        bucket_name=BUCKET,
+        locking_mechanism="s3",
+        aws_access_key_id="AKIAEXAMPLE",
+        aws_secret_access_key="example-secret",
+    )
     base.update(kw)
     return ResourceRequest(**base)
 
