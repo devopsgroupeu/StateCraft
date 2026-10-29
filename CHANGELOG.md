@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.2...v0.6.3) (2026-10-29)
+
+### 🐛 Bug Fixes
+
+* **core:** refuse foreign buckets and tables, delete safely and keep secrets out of errors (OP-261) ([#24](https://github.com/devopsgroupeu/StateCraft/issues/24)) ([1ea56da](https://github.com/devopsgroupeu/StateCraft/commit/1ea56dacb7e6c228a43c31b4c5314365ca95d2ef))
+
 ## [0.6.2](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.1...v0.6.2) (2026-10-29)
 
 ### 🐛 Bug Fixes
