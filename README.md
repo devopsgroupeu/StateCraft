@@ -82,6 +82,11 @@ docker run -d -p 8000:8000 \
 
 Access API documentation at `http://localhost:8000/docs`
 
+What the API refuses, so it never takes over or destroys something it did not create:
+- **create** answers `409` for an existing bucket that StateCraft did not create for the same `environment`. Tags are merged into a bucket's existing tags, never replace them. `locking_mechanism` defaults to `s3` (native S3 locking); a DynamoDB lock table is created tagged and with deletion protection.
+- **delete** needs `confirm` equal to `bucket_name`, a name matching `STATECRAFT_DELETE_ALLOWED_MARKERS`, and `ManagedBy=statecraft` on the bucket and on the lock table. Every check runs before anything is deleted; the bucket is deleted before the table; a table with deletion protection on answers `409` until it is unlocked deliberately. A bucket or table that is already gone counts as deleted.
+- An unknown `region` answers `400`, and a `422` never echoes the request body.
+
 **Option 1: Per-request credentials (multi-account support):**
 ```sh
 curl -X POST http://localhost:8000/resources/create \

@@ -13,7 +13,9 @@ from enum import Enum
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, SecretStr
 
 from .auth import require_service_token
 from .version import __version__
@@ -21,14 +23,18 @@ from .logs import request_id_var
 from .metrics import metrics_middleware, start_metrics_server
 from .core import (
     BucketCreationError,
+    aws_region_is_known,
+    bucket_exists,
     bucket_is_statecraft_managed,
     create_dynamodb_table,
     create_s3_bucket,
     delete_dynamodb_table,
     delete_s3_bucket,
     delete_target_is_allowed,
+    describe_lock_table,
     get_aws_clients,
     managed_tagset,
+    tags_mark_statecraft,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +75,21 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_request: Request, exc: RequestValidationError):
+    """422 without the rejected input.
+
+    FastAPI's default handler echoes each error's `input`: for a missing field,
+    the whole request body, AWS secret key included, and callers log what they
+    get back.
+    """
+    errors = [
+        {"type": error["type"], "loc": error["loc"], "msg": error["msg"]}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
 class LockingMechanism(str, Enum):
     """Locking mechanism choices for Terraform state."""
 
@@ -82,17 +103,18 @@ class ResourceRequest(BaseModel):
     region: str = Field(..., description="AWS region (e.g., us-east-1)")
     bucket_name: str = Field(..., description="S3 bucket name (globally unique)")
     locking_mechanism: LockingMechanism = Field(
-        default=LockingMechanism.dynamodb,
-        description="Locking mechanism: dynamodb (S3+DynamoDB) or s3 (native S3 locking)",
+        default=LockingMechanism.s3,
+        description="Locking mechanism: s3 (native S3 locking, default) or dynamodb "
+        "(S3+DynamoDB; deprecated by Terraform)",
     )
     table_name: Optional[str] = Field(
         None, description="DynamoDB table name (required if locking_mechanism=dynamodb)"
     )
-    aws_access_key_id: Optional[str] = Field(
+    aws_access_key_id: Optional[SecretStr] = Field(
         None,
         description="AWS access key ID (optional, falls back to environment). Use HTTPS in production!"
     )
-    aws_secret_access_key: Optional[str] = Field(
+    aws_secret_access_key: Optional[SecretStr] = Field(
         None,
         description="AWS secret access key (optional, falls back to environment). Use HTTPS in production!"
     )
@@ -123,6 +145,15 @@ class ResourceRequest(BaseModel):
         if safe_dict.get('aws_secret_access_key'):
             safe_dict['aws_secret_access_key'] = '[REDACTED]'
         return f"ResourceRequest({safe_dict})"
+
+
+def _secret_value(secret: Optional[SecretStr]) -> Optional[str]:
+    return secret.get_secret_value() if secret else None
+
+
+def _require_known_region(region: str):
+    if not aws_region_is_known(region):
+        raise HTTPException(status_code=400, detail=f"Unknown AWS region '{region}'")
 
 
 class ResourceResponse(BaseModel):
@@ -165,12 +196,13 @@ async def create_resources(request: ResourceRequest):
             status_code=400,
             detail="table_name is required when locking_mechanism is 'dynamodb'",
         )
+    _require_known_region(request.region)
 
     try:
         clients = get_aws_clients(
             request.region,
-            request.aws_access_key_id,
-            request.aws_secret_access_key,
+            _secret_value(request.aws_access_key_id),
+            _secret_value(request.aws_secret_access_key),
         )
     except Exception as e:
         logger.error(f"Failed to initialize AWS clients: {e}")
@@ -195,7 +227,9 @@ async def create_resources(request: ResourceRequest):
 
     if request.locking_mechanism == LockingMechanism.dynamodb:
         dynamodb_success = create_dynamodb_table(
-            clients["dynamodb_client"], request.table_name
+            clients["dynamodb_client"],
+            request.table_name,
+            tags=managed_tagset(request.environment, request.owner),
         )
         if not dynamodb_success:
             raise HTTPException(
@@ -230,7 +264,9 @@ async def delete_resources(request: ResourceRequest):
 
     Guarded against accidental/malicious destruction: the caller must echo the
     bucket name in `confirm`, the name must match the delete allow-list, and the
-    bucket must carry the StateCraft ownership tag. `dry_run` reports without deleting.
+    bucket and lock table must carry the StateCraft ownership tag. `dry_run`
+    reports without deleting. Every check runs before anything is deleted; an
+    already-deleted bucket or table counts as deleted.
     """
     # Audit every destructive request (identity via the shared service token +
     # the caller-supplied owner/environment).
@@ -252,12 +288,18 @@ async def delete_resources(request: ResourceRequest):
             status_code=400,
             detail="bucket_name is not in the StateCraft delete allow-list",
         )
+    if request.locking_mechanism == LockingMechanism.dynamodb and not request.table_name:
+        raise HTTPException(
+            status_code=400,
+            detail="table_name is required when locking_mechanism is 'dynamodb'",
+        )
+    _require_known_region(request.region)
 
     try:
         clients = get_aws_clients(
             request.region,
-            request.aws_access_key_id,
-            request.aws_secret_access_key,
+            _secret_value(request.aws_access_key_id),
+            _secret_value(request.aws_secret_access_key),
         )
     except Exception as e:
         logger.error(f"Failed to initialize AWS clients: {e}")
@@ -266,16 +308,39 @@ async def delete_resources(request: ResourceRequest):
             detail="Failed to initialize AWS clients. Check AWS credentials configuration.",
         )
 
-    # Never delete a bucket StateCraft did not create.
+    # Never delete a bucket StateCraft did not create. One that is already gone
+    # is the goal state, so a retried delete still succeeds.
     if not bucket_is_statecraft_managed(clients["s3_client"], request.bucket_name):
-        logger.warning(
-            "Refusing to delete unmanaged bucket '%s' (missing ManagedBy=statecraft tag)",
-            request.bucket_name,
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Refusing to delete a bucket not tagged ManagedBy=statecraft",
-        )
+        if bucket_exists(clients["s3_client"], request.bucket_name):
+            logger.warning(
+                "Refusing to delete unmanaged bucket '%s' (missing ManagedBy=statecraft tag)",
+                request.bucket_name,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Refusing to delete a bucket not tagged ManagedBy=statecraft",
+            )
+        logger.info("Bucket '%s' is already gone", request.bucket_name)
+
+    # Nor a lock table StateCraft did not create, and not one still protected.
+    lock_table = None
+    if request.locking_mechanism == LockingMechanism.dynamodb:
+        lock_table = describe_lock_table(clients["dynamodb_client"], request.table_name)
+        if lock_table and not tags_mark_statecraft(lock_table["tags"]):
+            logger.warning(
+                "Refusing to delete unmanaged table '%s' (missing ManagedBy=statecraft tag)",
+                request.table_name,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Refusing to delete a table not tagged ManagedBy=statecraft",
+            )
+        if lock_table and lock_table["deletion_protection"]:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Table '{request.table_name}' has deletion protection enabled. "
+                "Disable it deliberately, then retry.",
+            )
 
     if request.dry_run:
         return ResourceResponse(
@@ -284,23 +349,8 @@ async def delete_resources(request: ResourceRequest):
             details={"bucket_name": request.bucket_name, "dry_run": True},
         )
 
-    dynamodb_success = True
-    if request.locking_mechanism == LockingMechanism.dynamodb:
-        if not request.table_name:
-            raise HTTPException(
-                status_code=400,
-                detail="table_name is required when locking_mechanism is 'dynamodb'",
-            )
-        dynamodb_success = delete_dynamodb_table(
-            clients["dynamodb_client"], request.table_name
-        )
-
-    if not dynamodb_success:
-        raise HTTPException(
-            status_code=500,
-            detail="DynamoDB table deletion failed. S3 bucket deletion skipped.",
-        )
-
+    # The bucket goes first: if emptying it fails, the lock table still guards
+    # whatever state is left.
     s3_success = delete_s3_bucket(
         clients["s3_client"], clients["s3_resource"], request.bucket_name
     )
@@ -308,7 +358,15 @@ async def delete_resources(request: ResourceRequest):
     if not s3_success:
         raise HTTPException(
             status_code=500,
-            detail="S3 bucket deletion failed.",
+            detail="S3 bucket deletion failed. DynamoDB table deletion skipped.",
+        )
+
+    if lock_table and not delete_dynamodb_table(
+        clients["dynamodb_client"], request.table_name
+    ):
+        raise HTTPException(
+            status_code=500,
+            detail="S3 bucket deleted, but DynamoDB table deletion failed.",
         )
 
     return ResourceResponse(
