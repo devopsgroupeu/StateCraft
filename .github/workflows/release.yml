@@ -38,7 +38,7 @@ jobs:
           node-version: lts/*
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Semantic Release
         id: semantic
