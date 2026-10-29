@@ -223,10 +223,13 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 8000
-  # Egress rules (allow AWS API access)
+  # Egress rules. The AWS APIs are outside the cluster, which a
+  # namespaceSelector cannot match (it selects pods only), so HTTPS needs an
+  # ipBlock. Narrow the CIDR to VPC endpoints where the cluster has them (OP-261).
   egress:
     - to:
-      - namespaceSelector: {}
+      - ipBlock:
+          cidr: 0.0.0.0/0
       ports:
       - protocol: TCP
         port: 443

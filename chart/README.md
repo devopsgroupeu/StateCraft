@@ -213,7 +213,7 @@ both labelled by `method`, `route` (the matched route pattern) and
 |-----------|-------------|---------|
 | `networkPolicy.enabled` | Enable network policies | `false` |
 | `networkPolicy.ingress` | Ingress network policy rules | See values.yaml |
-| `networkPolicy.egress` | Egress network policy rules | See values.yaml |
+| `networkPolicy.egress` | Egress network policy rules: HTTPS to any address (the AWS APIs) and DNS over UDP and TCP | See values.yaml |
 
 When metrics are enabled the chart adds an ingress rule letting the namespaces
 matched by `metrics.scrapeNamespaceSelector` reach the metrics port. It is
