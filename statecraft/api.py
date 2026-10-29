@@ -155,8 +155,12 @@ async def health_check():
     tags=["Resources"],
     dependencies=[Depends(require_service_token)],
 )
-async def create_resources(request: ResourceRequest):
+def create_resources(request: ResourceRequest):
     """Create S3 bucket and optionally DynamoDB table for Terraform backend.
+
+    A plain `def` on purpose: boto3 calls and waiters block, so FastAPI must run
+    this in its threadpool rather than on the event loop, where it would stall
+    every other request, /health included.
 
     AWS credentials can be provided in the request or via environment variables.
     """
@@ -225,8 +229,10 @@ async def create_resources(request: ResourceRequest):
     tags=["Resources"],
     dependencies=[Depends(require_service_token)],
 )
-async def delete_resources(request: ResourceRequest):
+def delete_resources(request: ResourceRequest):
     """Delete S3 bucket and optionally DynamoDB table.
+
+    A plain `def` for the same reason as create_resources.
 
     Guarded against accidental/malicious destruction: the caller must echo the
     bucket name in `confirm`, the name must match the delete allow-list, and the
