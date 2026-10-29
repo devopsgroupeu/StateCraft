@@ -5,4 +5,4 @@
 # Both are needed: the Docker build checks out the commit that TRIGGERED the
 # release workflow, which is one commit older than semantic-release's own
 # `chore(release)` commit - so the file alone would always ship one version behind.
-__version__ = "0.6.0"
+__version__ = "0.6.1"

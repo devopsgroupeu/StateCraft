@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.0...v0.6.1) (2026-10-29)
+
+### 🐛 Bug Fixes
+
+* **auth:** refuse to start or serve without a service token (OP-260) ([#21](https://github.com/devopsgroupeu/StateCraft/issues/21)) ([c7425d7](https://github.com/devopsgroupeu/StateCraft/commit/c7425d7778615da293e24fdac8834ca0b0c49b8b))
+
 ## [0.6.0](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.2...v0.6.0) (2026-10-29)
 
 ### 🚀 Features
