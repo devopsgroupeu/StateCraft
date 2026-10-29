@@ -156,6 +156,18 @@ The following table lists the configurable parameters of the StateCraft chart an
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `app.env.LOG_LEVEL` | Application log level | `"INFO"` |
+| `extraEnv` | Extra container env vars (supports `valueFrom`) | `[]` |
+
+The API server does not start without `SERVICE_TOKEN`, the token the backend sends as `X-Service-Token`. The chart sets no token by default, so pass one through `extraEnv`, ideally from a Secret:
+
+```yaml
+extraEnv:
+  - name: SERVICE_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: openprime-backend-secrets
+        key: SERVICE_TOKEN
+```
 
 ### Health Checks
 

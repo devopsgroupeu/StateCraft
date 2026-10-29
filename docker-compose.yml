@@ -21,6 +21,8 @@ services:
       AWS_ACCESS_KEY_ID: ASIAIOSFODNN7EXAMPLE
       AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       AWS_DEFAULT_REGION: eu-west-1
+      # Required: the server does not start without it. Callers send it as X-Service-Token.
+      SERVICE_TOKEN: change-me
     command: server
     ports:
       - "8000:8000"
