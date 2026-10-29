@@ -4,7 +4,6 @@ Uses unittest.mock rather than a full AWS simulator: the point is to verify the
 ownership/confirm/allow-list/dry-run logic and that the right boto3 calls happen.
 """
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -154,7 +153,13 @@ def test_create_raises_on_invalid_bucket_name():
 
 
 def _req(**kw):
-    base = dict(region=REGION, bucket_name=BUCKET, locking_mechanism="s3")
+    base = dict(
+        region=REGION,
+        bucket_name=BUCKET,
+        locking_mechanism="s3",
+        aws_access_key_id="AKIAEXAMPLE",
+        aws_secret_access_key="example-secret",
+    )
     base.update(kw)
     return ResourceRequest(**base)
 
@@ -169,17 +174,13 @@ def _clients(s3):
 
 def test_delete_rejects_confirm_mismatch():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(delete_resources(_req(confirm="wrong")))
+        delete_resources(_req(confirm="wrong"))
     assert exc.value.status_code == 400
 
 
 def test_delete_rejects_disallowed_name():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            delete_resources(
-                _req(bucket_name="random-bucket", confirm="random-bucket")
-            )
-        )
+        delete_resources(_req(bucket_name="random-bucket", confirm="random-bucket"))
     assert exc.value.status_code == 400
 
 
@@ -187,7 +188,7 @@ def test_delete_rejects_disallowed_name():
 def test_delete_refuses_unmanaged_bucket(mock_clients):
     mock_clients.return_value = _clients(_s3_with_tags([]))  # no ManagedBy tag
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(delete_resources(_req(confirm=BUCKET)))
+        delete_resources(_req(confirm=BUCKET))
     assert exc.value.status_code == 403
 
 
@@ -197,7 +198,7 @@ def test_delete_dry_run_does_not_delete(mock_clients, mock_delete):
     mock_clients.return_value = _clients(
         _s3_with_tags([{"Key": "ManagedBy", "Value": "statecraft"}])
     )
-    resp = asyncio.run(delete_resources(_req(confirm=BUCKET, dry_run=True)))
+    resp = delete_resources(_req(confirm=BUCKET, dry_run=True))
     assert resp.details["dry_run"] is True
     mock_delete.assert_not_called()
 
@@ -208,6 +209,6 @@ def test_delete_proceeds_when_managed_and_confirmed(mock_clients, mock_delete):
     mock_clients.return_value = _clients(
         _s3_with_tags([{"Key": "ManagedBy", "Value": "statecraft"}])
     )
-    resp = asyncio.run(delete_resources(_req(confirm=BUCKET)))
+    resp = delete_resources(_req(confirm=BUCKET))
     assert resp.success is True
     mock_delete.assert_called_once()

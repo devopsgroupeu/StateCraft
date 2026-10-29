@@ -17,7 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
-from .auth import require_service_token
+from .auth import ensure_auth_configured, require_service_token
 from .version import __version__
 from .logs import request_id_var
 from .metrics import metrics_middleware, start_metrics_server
@@ -42,11 +42,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Start the metrics listener in the process that serves requests.
+    """Check auth is configured, then start the metrics listener in the process
+    that serves requests.
 
     Only API server mode runs the lifespan, so a one-off CLI invocation never
     binds the metrics port.
     """
+    ensure_auth_configured()
     start_metrics_server()
     yield
 
@@ -110,13 +112,15 @@ class ResourceRequest(BaseModel):
     table_name: Optional[str] = Field(
         None, description="DynamoDB table name (required if locking_mechanism=dynamodb)"
     )
+    # Required, but checked in the handlers so a missing key answers 400. StateCraft
+    # never falls back to its own AWS identity (see _require_customer_credentials).
     aws_access_key_id: Optional[SecretStr] = Field(
         None,
-        description="AWS access key ID (optional, falls back to environment). Use HTTPS in production!"
+        description="Customer's AWS access key ID (required). Use HTTPS in production!"
     )
     aws_secret_access_key: Optional[SecretStr] = Field(
         None,
-        description="AWS secret access key (optional, falls back to environment). Use HTTPS in production!"
+        description="Customer's AWS secret access key (required). Use HTTPS in production!"
     )
     # Ownership metadata — tagged onto created buckets so delete can verify ownership.
     environment: Optional[str] = Field(
@@ -156,6 +160,23 @@ def _require_known_region(region: str):
         raise HTTPException(status_code=400, detail=f"Unknown AWS region '{region}'")
 
 
+def _require_customer_credentials(request: ResourceRequest):
+    """Reject a request that does not carry the customer's AWS keys.
+
+    Without them boto3 would fall back to its default credential chain, which in
+    a pod resolves to the platform's own identity, so the bucket would be created
+    or deleted in the platform account instead of the customer's.
+    """
+    if not (
+        _secret_value(request.aws_access_key_id)
+        and _secret_value(request.aws_secret_access_key)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="aws_access_key_id and aws_secret_access_key are required",
+        )
+
+
 class ResourceResponse(BaseModel):
     """Response model for resource operations."""
 
@@ -186,11 +207,16 @@ async def health_check():
     tags=["Resources"],
     dependencies=[Depends(require_service_token)],
 )
-async def create_resources(request: ResourceRequest):
+def create_resources(request: ResourceRequest):
     """Create S3 bucket and optionally DynamoDB table for Terraform backend.
 
-    AWS credentials can be provided in the request or via environment variables.
+    A plain `def` on purpose: boto3 calls and waiters block, so FastAPI must run
+    this in its threadpool rather than on the event loop, where it would stall
+    every other request, /health included.
+
+    The customer's AWS credentials must be in the request.
     """
+    _require_customer_credentials(request)
     if request.locking_mechanism == LockingMechanism.dynamodb and not request.table_name:
         raise HTTPException(
             status_code=400,
@@ -259,8 +285,10 @@ async def create_resources(request: ResourceRequest):
     tags=["Resources"],
     dependencies=[Depends(require_service_token)],
 )
-async def delete_resources(request: ResourceRequest):
+def delete_resources(request: ResourceRequest):
     """Delete S3 bucket and optionally DynamoDB table.
+
+    A plain `def` for the same reason as create_resources.
 
     Guarded against accidental/malicious destruction: the caller must echo the
     bucket name in `confirm`, the name must match the delete allow-list, and the
@@ -294,6 +322,7 @@ async def delete_resources(request: ResourceRequest):
             detail="table_name is required when locking_mechanism is 'dynamodb'",
         )
     _require_known_region(request.region)
+    _require_customer_credentials(request)
 
     try:
         clients = get_aws_clients(

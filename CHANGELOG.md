@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.1...v0.6.2) (2026-10-29)
+
+### 🐛 Bug Fixes
+
+* **core:** refuse requests without customer credentials instead of using our own (OP-258) ([#22](https://github.com/devopsgroupeu/StateCraft/issues/22)) ([3438f4c](https://github.com/devopsgroupeu/StateCraft/commit/3438f4cc6567bad6bacb638210820d959c1b310b))
+
+## [0.6.1](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.0...v0.6.1) (2026-10-29)
+
+### 🐛 Bug Fixes
+
+* **auth:** refuse to start or serve without a service token (OP-260) ([#21](https://github.com/devopsgroupeu/StateCraft/issues/21)) ([c7425d7](https://github.com/devopsgroupeu/StateCraft/commit/c7425d7778615da293e24fdac8834ca0b0c49b8b))
+
+## [0.6.0](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.2...v0.6.0) (2026-10-29)
+
+### 🚀 Features
+
+* **metrics:** expose red metrics on a dedicated port (OP-176) ([#20](https://github.com/devopsgroupeu/StateCraft/issues/20)) ([9543bd5](https://github.com/devopsgroupeu/StateCraft/commit/9543bd5fda9ddd6255ec45c2f6fbd680e837ab70))
+
+### 🐛 Bug Fixes
+
+* **api:** run blocking aws calls off the event loop so health checks keep answering (OP-264) ([#23](https://github.com/devopsgroupeu/StateCraft/issues/23)) ([66de0bc](https://github.com/devopsgroupeu/StateCraft/commit/66de0bcbd1d9c20bc2471ad2e11371d726a29133))
+
 ## [0.6.0](https://github.com/devopsgroupeu/StateCraft/compare/v0.5.2...v0.6.0) (2026-10-28)
 
 ### 🚀 Features

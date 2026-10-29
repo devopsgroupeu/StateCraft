@@ -71,23 +71,26 @@ docker run --rm \
 **⚠️ SECURITY WARNING**: When sending AWS credentials via API requests:
 - **Always use HTTPS/TLS in production** to encrypt credentials in transit
 - Consider using **AWS STS temporary credentials** instead of long-lived access keys
-- Use **IAM roles** (e.g., ECS Task Role, EC2 Instance Profile) when running in AWS
 - Never log or persist credentials
 - Deploy behind a reverse proxy with TLS termination
 
 ```sh
 docker run -d -p 8000:8000 \
+    -e SERVICE_TOKEN=change-me \
     ghcr.io/devopsgroupeu/statecraft:latest server
 ```
 
 Access API documentation at `http://localhost:8000/docs`
+
+**Authentication:** the server does not start without `SERVICE_TOKEN`, and every `/resources/*` request must send it in the `X-Service-Token` header. For local development only, `STATECRAFT_AUTH_DISABLED=true` lets the server run without a token; it has no effect once `SERVICE_TOKEN` is set.
+
+Every `/resources/*` request must carry the target account's `aws_access_key_id` and `aws_secret_access_key`; a request without them is rejected with `400`. The API server never falls back to its own AWS identity (environment variables, shared config, or an attached IAM role), so no request can act as the server itself. The CLI does use the standard credential chain.
 
 What the API refuses, so it never takes over or destroys something it did not create:
 - **create** answers `409` for an existing bucket that StateCraft did not create for the same `environment`. Tags are merged into a bucket's existing tags, never replace them. `locking_mechanism` defaults to `s3` (native S3 locking); a DynamoDB lock table is created tagged and with deletion protection.
 - **delete** needs `confirm` equal to `bucket_name`, a name matching `STATECRAFT_DELETE_ALLOWED_MARKERS`, and `ManagedBy=statecraft` on the bucket and on the lock table. Every check runs before anything is deleted; the bucket is deleted before the table; a table with deletion protection on answers `409` until it is unlocked deliberately. A bucket or table that is already gone counts as deleted.
 - An unknown `region` answers `400`, and a `422` never echoes the request body.
 
-**Option 1: Per-request credentials (multi-account support):**
 ```sh
 curl -X POST http://localhost:8000/resources/create \
     -H "Content-Type: application/json" \
@@ -98,39 +101,6 @@ curl -X POST http://localhost:8000/resources/create \
         "locking_mechanism": "dynamodb",
         "aws_access_key_id": "ASIAIOSFODNN7EXAMPLE",
         "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-    }'
-```
-
-**Option 2: Environment variables (single account, more secure):**
-```sh
-docker run -d -p 8000:8000 \
-    -e AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE \
-    -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
-    ghcr.io/devopsgroupeu/statecraft:latest server
-
-curl -X POST http://localhost:8000/resources/create \
-    -H "Content-Type: application/json" \
-    -d '{
-        "region": "eu-west-1",
-        "bucket_name": "my-terraform-bucket",
-        "table_name": "my-terraform-dynamodb",
-        "locking_mechanism": "dynamodb"
-    }'
-```
-
-**Option 3: AWS IAM Roles (most secure for production):**
-```sh
-# When running on AWS (ECS, EC2, Lambda), use IAM roles - no credentials needed
-docker run -d -p 8000:8000 ghcr.io/devopsgroupeu/statecraft:latest server
-
-# Requests don't need credentials - automatically uses task/instance role
-curl -X POST http://localhost:8000/resources/create \
-    -H "Content-Type: application/json" \
-    -d '{
-        "region": "eu-west-1",
-        "bucket_name": "my-terraform-bucket",
-        "table_name": "my-terraform-dynamodb",
-        "locking_mechanism": "dynamodb"
     }'
 ```
 
