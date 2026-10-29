@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .auth import require_service_token
+from .auth import ensure_auth_configured, require_service_token
 from .version import __version__
 from .logs import request_id_var
 from .metrics import metrics_middleware, start_metrics_server
@@ -36,11 +36,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Start the metrics listener in the process that serves requests.
+    """Check auth is configured, then start the metrics listener in the process
+    that serves requests.
 
     Only API server mode runs the lifespan, so a one-off CLI invocation never
     binds the metrics port.
     """
+    ensure_auth_configured()
     start_metrics_server()
     yield
 
