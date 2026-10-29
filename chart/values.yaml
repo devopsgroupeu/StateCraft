@@ -230,9 +230,12 @@ networkPolicy:
       ports:
       - protocol: TCP
         port: 443
-    # DNS egress
+    # DNS egress, over TCP as well: a resolver retries over TCP when an answer
+    # is too large for UDP, and with UDP alone exactly those lookups fail (OP-261).
     - to:
       - namespaceSelector: {}
       ports:
       - protocol: UDP
+        port: 53
+      - protocol: TCP
         port: 53
