@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.1...v0.6.2) (2026-10-29)
+
+### 🐛 Bug Fixes
+
+* **core:** refuse requests without customer credentials instead of using our own (OP-258) ([#22](https://github.com/devopsgroupeu/StateCraft/issues/22)) ([3438f4c](https://github.com/devopsgroupeu/StateCraft/commit/3438f4cc6567bad6bacb638210820d959c1b310b))
+
 ## [0.6.1](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.0...v0.6.1) (2026-10-29)
 
 ### 🐛 Bug Fixes
