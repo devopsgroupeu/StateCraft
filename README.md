@@ -80,7 +80,7 @@ docker run -d -p 8000:8000 \
     ghcr.io/devopsgroupeu/statecraft:latest server
 ```
 
-Access API documentation at `http://localhost:8000/docs`
+The interactive docs (`/docs`, `/redoc`) and the OpenAPI schema (`/openapi.json`) are off unless `STATECRAFT_DOCS_ENABLED=true` (add `-e STATECRAFT_DOCS_ENABLED=true` above), which is meant for local development; then they are at `http://localhost:8000/docs`.
 
 **Authentication:** the server does not start without `SERVICE_TOKEN`, and every `/resources/*` request must send it in the `X-Service-Token` header. For local development only, `STATECRAFT_AUTH_DISABLED=true` lets the server run without a token; it has no effect once `SERVICE_TOKEN` is set.
 

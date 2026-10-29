@@ -7,6 +7,8 @@ SECURITY NOTICE:
 """
 
 import logging
+import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 from enum import Enum
@@ -53,21 +55,35 @@ async def lifespan(_app: FastAPI):
     yield
 
 
+# /docs, /redoc and /openapi.json map every endpoint for anyone who can reach
+# the port, without a token, so they are for local development only (OP-270).
+# FastAPI serves the two UIs only alongside the schema, so this switch turns
+# off all three.
+DOCS_ENABLED = os.getenv("STATECRAFT_DOCS_ENABLED", "").lower() == "true"
+
 app = FastAPI(
     title="StateCraft API",
     description="Manage AWS resources (S3 Bucket and optional DynamoDB Table) for Terraform backend state",
     version=__version__,
     lifespan=lifespan,
+    openapi_url="/openapi.json" if DOCS_ENABLED else None,
 )
 
 app.middleware("http")(metrics_middleware)
+
+
+# The caller's id is echoed back and written into every log line, so only one
+# shaped like an id is adopted: the same rule the backend applies (OP-270).
+REQUEST_ID_RE = re.compile(r"[A-Za-z0-9-]{1,64}")
 
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
     """Bind the caller's X-Request-ID (or a new one) so it appears in every log
     line for this request and correlates with the backend and other services."""
-    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+    request_id = request.headers.get("X-Request-ID", "")
+    if not REQUEST_ID_RE.fullmatch(request_id):
+        request_id = uuid.uuid4().hex[:16]
     token = request_id_var.set(request_id)
     try:
         response = await call_next(request)

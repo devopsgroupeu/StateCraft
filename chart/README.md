@@ -88,6 +88,7 @@ The following table lists the configurable parameters of the StateCraft chart an
 | `serviceAccount.create` | Create service account | `true` |
 | `serviceAccount.annotations` | Service account annotations | `{}` |
 | `serviceAccount.name` | Service account name | `""` |
+| `serviceAccount.automount` | Mount a Kubernetes API token into the pod (StateCraft never calls the API) | `false` |
 
 ### Security Context
 
@@ -359,7 +360,7 @@ ingress:
 - `GET /health` - Detailed health information
 - `POST /resources/create` - Create S3 bucket and DynamoDB table
 - `POST /resources/delete` - Delete S3 bucket and DynamoDB table
-- `GET /docs` - Interactive API documentation (Swagger UI)
+- `GET /docs` - Interactive API documentation (Swagger UI), only with `STATECRAFT_DOCS_ENABLED=true` in `app.env`
 
 ## Examples
 

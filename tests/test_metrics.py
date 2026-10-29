@@ -146,10 +146,12 @@ def test_a_port_already_in_use_is_logged_not_raised(monkeypatch):
             metrics.stop_metrics_server()
 
 
-def test_builtin_routes_are_labelled_by_their_path():
+def test_builtin_routes_are_labelled_by_their_path(mini_client):
+    # The mini app keeps FastAPI's default /openapi.json; StateCraft's own app
+    # serves it only when STATECRAFT_DOCS_ENABLED is set (OP-270).
     before = requests_count(method="GET", route="/openapi.json", status_code="200")
 
-    client.get("/openapi.json")
+    mini_client.get("/openapi.json")
 
     assert requests_count(method="GET", route="/openapi.json", status_code="200") == before + 1
 
