@@ -18,6 +18,9 @@ services:
   # No AWS credentials here: every request carries the customer's keys.
   statecraft-server:
     image: ghcr.io/devopsgroupeu/statecraft:latest
+    environment:
+      # Required: the server does not start without it. Callers send it as X-Service-Token.
+      SERVICE_TOKEN: change-me
     command: server
     ports:
       - "8000:8000"

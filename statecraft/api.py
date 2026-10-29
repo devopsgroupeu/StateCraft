@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .auth import require_service_token
+from .auth import ensure_auth_configured, require_service_token
 from .version import __version__
 from .logs import request_id_var
 from .metrics import metrics_middleware, start_metrics_server
@@ -36,11 +36,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Start the metrics listener in the process that serves requests.
+    """Check auth is configured, then start the metrics listener in the process
+    that serves requests.
 
     Only API server mode runs the lifespan, so a one-off CLI invocation never
     binds the metrics port.
     """
+    ensure_auth_configured()
     start_metrics_server()
     yield
 
@@ -171,8 +173,12 @@ async def health_check():
     tags=["Resources"],
     dependencies=[Depends(require_service_token)],
 )
-async def create_resources(request: ResourceRequest):
+def create_resources(request: ResourceRequest):
     """Create S3 bucket and optionally DynamoDB table for Terraform backend.
+
+    A plain `def` on purpose: boto3 calls and waiters block, so FastAPI must run
+    this in its threadpool rather than on the event loop, where it would stall
+    every other request, /health included.
 
     The customer's AWS credentials must be in the request.
     """
@@ -242,8 +248,10 @@ async def create_resources(request: ResourceRequest):
     tags=["Resources"],
     dependencies=[Depends(require_service_token)],
 )
-async def delete_resources(request: ResourceRequest):
+def delete_resources(request: ResourceRequest):
     """Delete S3 bucket and optionally DynamoDB table.
+
+    A plain `def` for the same reason as create_resources.
 
     Guarded against accidental/malicious destruction: the caller must echo the
     bucket name in `confirm`, the name must match the delete allow-list, and the

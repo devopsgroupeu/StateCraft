@@ -76,10 +76,13 @@ docker run --rm \
 
 ```sh
 docker run -d -p 8000:8000 \
+    -e SERVICE_TOKEN=change-me \
     ghcr.io/devopsgroupeu/statecraft:latest server
 ```
 
 Access API documentation at `http://localhost:8000/docs`
+
+**Authentication:** the server does not start without `SERVICE_TOKEN`, and every `/resources/*` request must send it in the `X-Service-Token` header. For local development only, `STATECRAFT_AUTH_DISABLED=true` lets the server run without a token; it has no effect once `SERVICE_TOKEN` is set.
 
 Every `/resources/*` request must carry the target account's `aws_access_key_id` and `aws_secret_access_key`; a request without them is rejected with `400`. The API server never falls back to its own AWS identity (environment variables, shared config, or an attached IAM role), so no request can act as the server itself. The CLI does use the standard credential chain.
 
