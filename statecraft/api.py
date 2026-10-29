@@ -88,13 +88,15 @@ class ResourceRequest(BaseModel):
     table_name: Optional[str] = Field(
         None, description="DynamoDB table name (required if locking_mechanism=dynamodb)"
     )
+    # Required, but checked in the handlers so a missing key answers 400. StateCraft
+    # never falls back to its own AWS identity (see _require_customer_credentials).
     aws_access_key_id: Optional[str] = Field(
         None,
-        description="AWS access key ID (optional, falls back to environment). Use HTTPS in production!"
+        description="Customer's AWS access key ID (required). Use HTTPS in production!"
     )
     aws_secret_access_key: Optional[str] = Field(
         None,
-        description="AWS secret access key (optional, falls back to environment). Use HTTPS in production!"
+        description="Customer's AWS secret access key (required). Use HTTPS in production!"
     )
     # Ownership metadata — tagged onto created buckets so delete can verify ownership.
     environment: Optional[str] = Field(
@@ -123,6 +125,20 @@ class ResourceRequest(BaseModel):
         if safe_dict.get('aws_secret_access_key'):
             safe_dict['aws_secret_access_key'] = '[REDACTED]'
         return f"ResourceRequest({safe_dict})"
+
+
+def _require_customer_credentials(request: ResourceRequest):
+    """Reject a request that does not carry the customer's AWS keys.
+
+    Without them boto3 would fall back to its default credential chain, which in
+    a pod resolves to the platform's own identity, so the bucket would be created
+    or deleted in the platform account instead of the customer's.
+    """
+    if not (request.aws_access_key_id and request.aws_secret_access_key):
+        raise HTTPException(
+            status_code=400,
+            detail="aws_access_key_id and aws_secret_access_key are required",
+        )
 
 
 class ResourceResponse(BaseModel):
@@ -158,8 +174,9 @@ async def health_check():
 async def create_resources(request: ResourceRequest):
     """Create S3 bucket and optionally DynamoDB table for Terraform backend.
 
-    AWS credentials can be provided in the request or via environment variables.
+    The customer's AWS credentials must be in the request.
     """
+    _require_customer_credentials(request)
     if request.locking_mechanism == LockingMechanism.dynamodb and not request.table_name:
         raise HTTPException(
             status_code=400,
@@ -252,6 +269,7 @@ async def delete_resources(request: ResourceRequest):
             status_code=400,
             detail="bucket_name is not in the StateCraft delete allow-list",
         )
+    _require_customer_credentials(request)
 
     try:
         clients = get_aws_clients(
