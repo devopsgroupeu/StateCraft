@@ -1,5 +1,6 @@
 """Core business logic for StateCraft - shared by CLI and API."""
 
+import functools
 import logging
 import os
 import sys
@@ -16,6 +17,7 @@ from .logs import logger  # noqa: E402
 # and an explicit confirm token (see api.delete_resources).
 MANAGED_BY_KEY = "ManagedBy"
 MANAGED_BY_VALUE = "statecraft"
+ENVIRONMENT_KEY = "OpenPrimeEnv"
 
 
 class BucketCreationError(Exception):
@@ -32,6 +34,12 @@ _BUCKET_ERROR_MESSAGES = {
     "BucketAlreadyExists": (
         "Bucket name '{name}' is already taken by another AWS account. S3 bucket "
         "names are globally unique — use a different environment name or global prefix.",
+        409,
+    ),
+    "BucketAlreadyOwnedByYou": (
+        "Bucket '{name}' already exists in this AWS account and StateCraft did not "
+        "create it for this environment. Use it as an existing backend, or choose a "
+        "different environment name.",
         409,
     ),
     "InvalidBucketName": (
@@ -67,10 +75,44 @@ def managed_tagset(environment=None, owner=None):
     """Ownership tags applied to every StateCraft-created bucket."""
     tags = [{"Key": MANAGED_BY_KEY, "Value": MANAGED_BY_VALUE}]
     if environment:
-        tags.append({"Key": "OpenPrimeEnv", "Value": str(environment)})
+        tags.append({"Key": ENVIRONMENT_KEY, "Value": str(environment)})
     if owner:
         tags.append({"Key": "Owner", "Value": str(owner)})
     return tags
+
+
+def _tag_dict(tagset):
+    return {tag["Key"]: tag["Value"] for tag in tagset}
+
+
+def tags_mark_statecraft(tags):
+    """True if a resource's tags (as a dict) carry ManagedBy=statecraft."""
+    return tags.get(MANAGED_BY_KEY) == MANAGED_BY_VALUE
+
+
+def _created_for_same_environment(existing, wanted):
+    """True if an existing resource's tags show StateCraft created it for the
+    environment the request is for (no environment tag on either side counts)."""
+    return tags_mark_statecraft(existing) and existing.get(ENVIRONMENT_KEY) == wanted.get(
+        ENVIRONMENT_KEY
+    )
+
+
+@functools.lru_cache(maxsize=1)
+def _known_regions():
+    # botocore's bundled endpoint data, all partitions; no network call.
+    session = boto3.session.Session()
+    return frozenset(
+        region
+        for partition in session.get_available_partitions()
+        for region in session.get_available_regions("s3", partition_name=partition)
+    )
+
+
+def aws_region_is_known(region):
+    """True if botocore knows the region. An unknown one would otherwise only
+    fail later, as a connection error on a made-up endpoint."""
+    return region in _known_regions()
 
 
 def allowed_bucket_markers():
@@ -108,16 +150,39 @@ def bucket_is_statecraft_managed(s3_client, bucket_name):
     return False
 
 
+def _existing_bucket_tags(s3_client, bucket_name):
+    """Tags of an existing bucket in this account as a dict ({} if it has none),
+    or None if there is no such bucket here.
+
+    AccessDenied also answers None: it is what another account's bucket returns,
+    and CreateBucket then reports precisely whether the name is taken.
+    """
+    try:
+        resp = s3_client.get_bucket_tagging(Bucket=bucket_name)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        if code == "NoSuchTagSet":
+            return {}
+        if code in ("NoSuchBucket", "AccessDenied"):
+            return None
+        raise
+    return _tag_dict(resp.get("TagSet", []))
+
+
 def create_s3_bucket(s3_client, bucket_name, region, tags=None):
     """Create (or reconcile) the S3 bucket for Terraform backend state.
 
-    Idempotent: if the bucket already exists and is owned by us, its
-    versioning / encryption / public-access-block / tags are re-applied, so a
-    retry after a partially-created bucket still ends fully configured.
+    Idempotent for StateCraft's own bucket: if it already exists and carries
+    StateCraft's tags for the same environment, its versioning / encryption /
+    public-access-block / tags are re-applied, so a retry after a partially-created
+    bucket still ends fully configured. Any other existing bucket is refused
+    (409) rather than taken over. Tags are merged into the bucket's own, never
+    replace them.
 
     Returns True on success; raises BucketCreationError (with a user-safe
     message) on failure instead of collapsing the cause to a bare False.
     """
+    wanted_tags = _tag_dict(tags if tags is not None else managed_tagset())
     logging.info(f"Ensuring S3 bucket '{bucket_name}' exists in region '{region}'...")
     try:
         # us-east-1 must NOT receive a CreateBucketConfiguration: an empty
@@ -127,19 +192,29 @@ def create_s3_bucket(s3_client, bucket_name, region, tags=None):
         if region != "us-east-1":
             create_kwargs["CreateBucketConfiguration"] = {"LocationConstraint": region}
 
-        try:
-            s3_client.create_bucket(**create_kwargs)
+        # Look before creating: in us-east-1, CreateBucket on a bucket this
+        # account already owns succeeds instead of answering BucketAlreadyOwnedByYou.
+        existing_tags = _existing_bucket_tags(s3_client, bucket_name)
+        if existing_tags is None:
+            try:
+                s3_client.create_bucket(**create_kwargs)
+            except ClientError as e:
+                # BucketAlreadyOwnedByYou here means it appeared since the look
+                # above, which StateCraft cannot vouch for: also a 409.
+                raise _bucket_error(e.response.get("Error", {}).get("Code"), bucket_name)
+            existing_tags = {}
             logging.info(f"Bucket '{bucket_name}' created. Configuring settings...")
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code")
-            if error_code == "BucketAlreadyOwnedByYou":
-                # Retry-safe: fall through and (re)apply the configuration below
-                # so a bucket left half-configured by an earlier run is healed.
-                logging.warning(
-                    f"Bucket '{bucket_name}' already owned by you — reconciling configuration."
-                )
-            else:
-                raise _bucket_error(error_code, bucket_name)
+        elif _created_for_same_environment(existing_tags, wanted_tags):
+            # Retry-safe: (re)apply the configuration below so a bucket left
+            # half-configured by an earlier run is healed.
+            logging.warning(
+                f"Bucket '{bucket_name}' already exists and is StateCraft's — reconciling configuration."
+            )
+        else:
+            logging.warning(
+                f"Refusing to take over existing bucket '{bucket_name}' (tags: {sorted(existing_tags)})"
+            )
+            raise _bucket_error("BucketAlreadyOwnedByYou", bucket_name)
 
         s3_client.put_bucket_versioning(
             Bucket=bucket_name, VersioningConfiguration={"Status": "Enabled"}
@@ -169,9 +244,10 @@ def create_s3_bucket(s3_client, bucket_name, region, tags=None):
         )
         logging.info(f"- Public access blocked for bucket '{bucket_name}'.")
 
+        merged_tags = {**existing_tags, **wanted_tags}
         s3_client.put_bucket_tagging(
             Bucket=bucket_name,
-            Tagging={"TagSet": tags if tags is not None else managed_tagset()},
+            Tagging={"TagSet": [{"Key": k, "Value": v} for k, v in merged_tags.items()]},
         )
         logging.info(f"- Ownership tags applied to bucket '{bucket_name}'.")
 
@@ -195,6 +271,17 @@ def create_s3_bucket(s3_client, bucket_name, region, tags=None):
         raise BucketCreationError(
             f"Unexpected error creating the state bucket '{bucket_name}'."
         )
+
+
+def bucket_exists(s3_client, bucket_name):
+    """True if the bucket exists; False only when S3 says it does not."""
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("404", "NoSuchBucket"):
+            return False
+        raise
+    return True
 
 
 def delete_s3_bucket(s3_client, s3_resource, bucket_name):
@@ -221,10 +308,17 @@ def delete_s3_bucket(s3_client, s3_resource, bucket_name):
         logging.info(
             f"Emptying bucket '{bucket_name}' (deleting all object versions)..."
         )
-        deleted_count = 0
-        for obj_version in bucket.object_versions.all():
-            obj_version.delete()
-            deleted_count += 1
+        # One DeleteObjects call per page of up to 1000 versions and delete
+        # markers, instead of one request per version.
+        responses = bucket.object_versions.delete()
+        deleted_count = sum(len(r.get("Deleted", [])) for r in responses)
+        errors = [err for r in responses for err in r.get("Errors", [])]
+        if errors:
+            logging.error(
+                f"Could not delete {len(errors)} object versions from bucket "
+                f"'{bucket_name}', e.g. {errors[0]}"
+            )
+            return False
         logging.info(
             f"Deleted {deleted_count} object versions from bucket '{bucket_name}'."
         )
@@ -247,8 +341,31 @@ def delete_s3_bucket(s3_client, s3_resource, bucket_name):
         return False
 
 
-def create_dynamodb_table(dynamodb_client, table_name):
-    """Creates DynamoDB table configured for Terraform state locking."""
+def describe_lock_table(dynamodb_client, table_name):
+    """Status, tags and deletion protection of a table, or None if it does not exist."""
+    try:
+        table = dynamodb_client.describe_table(TableName=table_name)["Table"]
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            return None
+        raise
+    pages = dynamodb_client.get_paginator("list_tags_of_resource").paginate(
+        ResourceArn=table["TableArn"]
+    )
+    return {
+        "status": table["TableStatus"],
+        "tags": _tag_dict(tag for page in pages for tag in page.get("Tags", [])),
+        "deletion_protection": table.get("DeletionProtectionEnabled", False),
+    }
+
+
+def create_dynamodb_table(dynamodb_client, table_name, tags=None):
+    """Creates DynamoDB table configured for Terraform state locking.
+
+    The table is tagged like the bucket, so delete can verify ownership, and is
+    created with deletion protection, so removing it takes a deliberate unlock.
+    """
+    tags = tags if tags is not None else managed_tagset()
     logging.info(f"Attempting to create DynamoDB table '{table_name}'...")
     try:
         dynamodb_client.create_table(
@@ -260,6 +377,8 @@ def create_dynamodb_table(dynamodb_client, table_name):
                 {"AttributeName": "LockID", "KeyType": "HASH"}
             ],
             BillingMode="PAY_PER_REQUEST",
+            DeletionProtectionEnabled=True,
+            Tags=tags,
         )
 
         logging.info(f"Waiting for table '{table_name}' to become active...")
@@ -270,10 +389,31 @@ def create_dynamodb_table(dynamodb_client, table_name):
 
     except ClientError as e:
         if e.response["Error"]["Code"] == "ResourceInUseException":
-            logging.warning(
-                f"DynamoDB table '{table_name}' already exists. Skipping creation."
+            # A table of that name exists, but it may be another one, or still
+            # CREATING/DELETING: only StateCraft's own ACTIVE table counts.
+            try:
+                table = describe_lock_table(dynamodb_client, table_name)
+            except ClientError as describe_error:
+                logging.error(
+                    f"DynamoDB table '{table_name}' already exists and could not be "
+                    f"verified as StateCraft's: {describe_error}"
+                )
+                return False
+            if (
+                table
+                and table["status"] == "ACTIVE"
+                and _created_for_same_environment(table["tags"], _tag_dict(tags))
+            ):
+                logging.warning(
+                    f"DynamoDB table '{table_name}' already exists. Skipping creation."
+                )
+                return True
+            logging.error(
+                f"DynamoDB table '{table_name}' already exists but is not StateCraft's "
+                f"ACTIVE table for this environment (status: "
+                f"{table['status'] if table else 'gone'})."
             )
-            return True
+            return False
         else:
             logging.error(
                 f"An error occurred creating table '{table_name}': {e}", exc_info=True

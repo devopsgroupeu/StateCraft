@@ -281,31 +281,46 @@ StateCraft requires the following AWS IAM permissions:
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "CreateStateBucket",
       "Effect": "Allow",
       "Action": [
         "s3:CreateBucket",
-        "s3:DeleteBucket",
+        "s3:ListBucket",
+        "s3:GetBucketTagging",
+        "s3:PutBucketTagging",
         "s3:PutBucketVersioning",
-        "s3:PutBucketEncryption",
-        "s3:PutPublicAccessBlock",
-        "s3:DeleteObject",
-        "s3:ListBucketVersions",
-        "s3:HeadBucket"
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketPublicAccessBlock"
       ],
       "Resource": "arn:aws:s3:::*"
     },
     {
+      "Sid": "DeleteStateBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucketVersions",
+        "s3:DeleteObjectVersion",
+        "s3:DeleteBucket"
+      ],
+      "Resource": ["arn:aws:s3:::*", "arn:aws:s3:::*/*"]
+    },
+    {
+      "Sid": "DynamoDBLockTable",
       "Effect": "Allow",
       "Action": [
         "dynamodb:CreateTable",
-        "dynamodb:DeleteTable",
-        "dynamodb:DescribeTable"
+        "dynamodb:TagResource",
+        "dynamodb:DescribeTable",
+        "dynamodb:ListTagsOfResource",
+        "dynamodb:DeleteTable"
       ],
       "Resource": "arn:aws:dynamodb:*:*:table/*"
     }
   ]
 }
 ```
+
+These are IAM action names: `HeadBucket` is authorised by `s3:ListBucket`, `PutBucketEncryption` by `s3:PutEncryptionConfiguration`, and the batched `DeleteObjects` by `s3:DeleteObjectVersion` per version. `GetBucketTagging` is what lets create refuse a bucket StateCraft did not create. The DynamoDB statement is only needed for `locking_mechanism: dynamodb`; the OpenPrime wizard always uses `s3`.
 
 ## Accessing StateCraft API
 

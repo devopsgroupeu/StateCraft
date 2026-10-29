@@ -113,12 +113,20 @@ class TestCreateIdempotency:
 
 
 class TestDynamoDbDelete:
-    def test_deletes_the_lock_table(self, aws):
+    def test_deletes_the_lock_table_once_deliberately_unlocked(self, aws):
         dynamodb = aws["dynamodb"]
         create_dynamodb_table(dynamodb, TABLE)
+        dynamodb.update_table(TableName=TABLE, DeletionProtectionEnabled=False)
 
         assert delete_dynamodb_table(dynamodb, TABLE) is True
         assert TABLE not in dynamodb.list_tables()["TableNames"]
+
+    def test_a_protected_lock_table_is_not_deleted(self, aws):
+        dynamodb = aws["dynamodb"]
+        create_dynamodb_table(dynamodb, TABLE)
+
+        assert delete_dynamodb_table(dynamodb, TABLE) is False
+        assert TABLE in dynamodb.list_tables()["TableNames"]
 
     def test_deleting_a_table_that_is_already_gone_is_not_an_error(self, aws):
         assert delete_dynamodb_table(aws["dynamodb"], "never-existed-openprime") is True
