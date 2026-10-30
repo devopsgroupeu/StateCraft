@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.5](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.4...v0.6.5) (2026-10-30)
+
+### 🐛 Bug Fixes
+
+* **chart:** let the NetworkPolicy reach the AWS APIs and resolve DNS over TCP (OP-261) ([#27](https://github.com/devopsgroupeu/StateCraft/issues/27)) ([c35b4e2](https://github.com/devopsgroupeu/StateCraft/commit/c35b4e25f0f2f568d445e9d5a6f56c9e20fe8727))
+
 ## [0.6.4](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.3...v0.6.4) (2026-10-30)
 
 ### 🐛 Bug Fixes
