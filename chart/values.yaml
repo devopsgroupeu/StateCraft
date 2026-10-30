@@ -36,6 +36,10 @@ fullnameOverride: ""
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
+  # Mount a Kubernetes API token into the pod. StateCraft never calls the API,
+  # so a token would only be something to steal (OP-270). Applied to the pod as
+  # well as the ServiceAccount, so it also holds with create: false.
+  automount: false
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use
