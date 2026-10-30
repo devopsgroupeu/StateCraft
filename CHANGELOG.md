@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.4](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.3...v0.6.4) (2026-10-30)
+
+### 🐛 Bug Fixes
+
+* make API docs opt-in, validate X-Request-ID and stop mounting the SA token (OP-270) ([#26](https://github.com/devopsgroupeu/StateCraft/issues/26)) ([ce97b18](https://github.com/devopsgroupeu/StateCraft/commit/ce97b1810e8afdfac70943049225e0376c78539f))
+
 ## [0.6.3](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.2...v0.6.3) (2026-10-29)
 
 ### 🐛 Bug Fixes
