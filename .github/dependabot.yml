@@ -12,13 +12,17 @@ updates:
     groups:
       actions:
         update-types: [minor, patch]
+      actions-major:
+        update-types: [major]
 
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
+    versioning-strategy: increase-if-necessary
     commit-message:
       prefix: build
+      prefix-development: chore
       include: scope
     groups:
       pip:
@@ -40,6 +44,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Until OpenPrime-280: preset 10 needs conventional-changelog-writer 9, which only the
+    # semantic-release 26 line ships; merging it breaks the next release's notes.
+    ignore:
+      - dependency-name: conventional-changelog-conventionalcommits
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: chore
       include: scope
