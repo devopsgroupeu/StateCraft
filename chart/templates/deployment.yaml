@@ -1,3 +1,14 @@
+{{- /* The API refuses to start without a token, so a release rendered without
+     one would only crashloop. Fail at render instead (OP-270). The app reads
+     STATECRAFT_AUTH_DISABLED as true only when it is the string "true". */ -}}
+{{- $hasToken := or .Values.envFrom (get .Values.app.env "SERVICE_TOKEN") (eq (lower (toString (get .Values.app.env "STATECRAFT_AUTH_DISABLED"))) "true") -}}
+{{- range .Values.extraEnv }}
+{{- if eq .name "SERVICE_TOKEN" }}{{ $hasToken = true }}{{ end }}
+{{- if and (eq .name "STATECRAFT_AUTH_DISABLED") (eq (lower (toString .value)) "true") }}{{ $hasToken = true }}{{ end }}
+{{- end }}
+{{- if not $hasToken }}
+{{- fail "StateCraft needs a service token: add SERVICE_TOKEN to extraEnv (valueFrom a Secret), or provide it via envFrom; for local development only, set STATECRAFT_AUTH_DISABLED=true" }}
+{{- end }}
 {{- if and .Values.metrics.enabled (eq (int .Values.metrics.port) (int .Values.service.targetPort)) }}
 {{- fail "metrics.port must differ from service.targetPort: the metrics listener and the API cannot share a port" }}
 {{- end }}
