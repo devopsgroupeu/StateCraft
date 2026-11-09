@@ -159,7 +159,7 @@ The following table lists the configurable parameters of the StateCraft chart an
 | `app.env.LOG_LEVEL` | Application log level | `"INFO"` |
 | `extraEnv` | Extra container env vars (supports `valueFrom`) | `[]` |
 
-The API server does not start without `SERVICE_TOKEN`, the token the backend sends as `X-Service-Token`. The chart sets no token by default, so pass one through `extraEnv`, ideally from a Secret:
+The API server does not start without `SERVICE_TOKEN`, the token the backend sends as `X-Service-Token`. The chart sets no token by default and refuses to render until one is passed through `extraEnv` (ideally from a Secret), `envFrom`, or `app.env`; `STATECRAFT_AUTH_DISABLED=true` skips the check for local development only:
 
 ```yaml
 extraEnv:
