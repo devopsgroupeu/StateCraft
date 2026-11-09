@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.6](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.5...v0.6.6) (2026-11-09)
+
+### 🐛 Bug Fixes
+
+* **chart:** refuse to render without a service token (OP-270) ([#43](https://github.com/devopsgroupeu/StateCraft/issues/43)) ([3ce2b54](https://github.com/devopsgroupeu/StateCraft/commit/3ce2b54dfb774c74434d8bdf5ed9388ff36134cf))
+
 ## [0.6.5](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.4...v0.6.5) (2026-10-30)
 
 ### 🐛 Bug Fixes
