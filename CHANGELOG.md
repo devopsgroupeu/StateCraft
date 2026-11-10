@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.7](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.6...v0.6.7) (2026-11-10)
+
+### 🏗️ Build System
+
+* **docker:** pin the base image by digest (OP-191) ([#44](https://github.com/devopsgroupeu/StateCraft/issues/44)) ([b7ea541](https://github.com/devopsgroupeu/StateCraft/commit/b7ea541c4f22a45289994a81d0f4dc7d3d539362))
+
 ## [0.6.6](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.5...v0.6.6) (2026-11-09)
 
 ### 🐛 Bug Fixes
