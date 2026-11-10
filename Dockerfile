@@ -1,5 +1,7 @@
-# Use a slim Python image for a smaller footprint
-FROM python:3.13-slim
+# Use a slim Python image for a smaller footprint. Pinned by digest (the
+# multi-arch index), so a rebuild uses exactly this image until it is bumped on
+# purpose; the tag alone would follow whatever is pushed under it (OP-191).
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 
 # The release version, passed in by the publish workflow. It is not just a
 # label: it is written into the package below so /health and the OpenAPI docs
