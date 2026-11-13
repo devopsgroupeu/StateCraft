@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.8](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.7...v0.6.8) (2026-11-13)
+
+### 🏗️ Build System
+
+* **deps:** bump python from 3.13-slim to 3.15-slim in the docker group ([#45](https://github.com/devopsgroupeu/StateCraft/issues/45)) ([442fc11](https://github.com/devopsgroupeu/StateCraft/commit/442fc11cdbd6a04b4c43a202601427a15fd7a908))
+
 ## [0.6.7](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.6...v0.6.7) (2026-11-10)
 
 ### 🏗️ Build System
