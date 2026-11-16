@@ -19,9 +19,10 @@ LABEL org.opencontainers.image.title="statecraft" \
 # Set the working directory inside the container
 WORKDIR /app
 
-# Create a non-root user and group for security
-# Running containers as non-root is a best practice.
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# Non-root user with a fixed UID/GID 1000, matching runAsUser/fsGroup in the
+# chart (H97). Without --uid/--gid, --system picks a random UID below 1000.
+RUN addgroup --system --gid 1000 appgroup \
+ && adduser --system --uid 1000 --ingroup appgroup appuser
 
 # Copy only the requirements file first to leverage Docker cache
 COPY requirements.txt .
@@ -45,7 +46,7 @@ RUN echo "__version__ = \"${STATECRAFT_VERSION}\"" > ./statecraft/version.py
 # This is important if the entrypoint needs to write files (though our script writes outside /app)
 RUN chown -R appuser:appgroup /app
 # Switch to the non-root user
-USER appuser
+USER 1000:1000
 
 # Expose port for API server mode
 EXPOSE 8000
