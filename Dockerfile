@@ -23,6 +23,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Set the working directory inside the container
 WORKDIR /app
 
+# Debian security fix the pinned base digest does not carry yet. Remove this
+# step once Dependabot bumps the digest to a rebuild that includes it.
+#   zlib1g: CVE-2026-85091, fixed in 1:1.3.dfsg+really1.3.1-1+deb13u1
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+ && rm -rf /var/lib/apt/lists/*
+ 
 # Non-root user with a fixed UID/GID 1000, matching runAsUser/fsGroup in the
 # chart (H97). Without --uid/--gid, --system picks a random UID below 1000.
 RUN addgroup --system --gid 1000 appgroup \
