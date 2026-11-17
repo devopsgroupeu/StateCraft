@@ -1,0 +1,7 @@
+# Runtime dependencies. Edit this file, then regenerate requirements.txt:
+#   pip-compile --generate-hashes --allow-unsafe requirements.in
+boto3>=1.20.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+prometheus-client>=0.20.0

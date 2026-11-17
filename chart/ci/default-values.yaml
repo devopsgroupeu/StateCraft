@@ -1,0 +1,8 @@
+# CI only (helm lint + kubeconform). The chart refuses to render without a
+# service token (OP-270); this points it at a Secret nobody reads at render time.
+extraEnv:
+  - name: SERVICE_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: ci-service-token
+        key: SERVICE_TOKEN

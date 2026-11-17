@@ -16,6 +16,10 @@ LABEL org.opencontainers.image.title="statecraft" \
       org.opencontainers.image.authors="Andrej Rabek <andrej.rabek@devopsgroup.sk>" \
       org.opencontainers.image.licenses="Apache-2.0"
 
+# No .pyc writes at runtime: the code is root-owned and the root filesystem can
+# be read-only, so Python could not write them anyway.
+ENV PYTHONDONTWRITEBYTECODE=1
+
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -24,16 +28,19 @@ WORKDIR /app
 RUN addgroup --system --gid 1000 appgroup \
  && adduser --system --uid 1000 --ingroup appgroup appuser
 
-# Copy only the requirements file first to leverage Docker cache
+# Copy only the lock file first to leverage the Docker layer cache
 COPY requirements.txt .
 
-# Install dependencies
-# --no-cache-dir reduces image size
-# --system installs packages system-wide (good for simple containers)
-# Optionally use a virtual environment if preferred
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the hash-pinned dependencies (generated from requirements.in with
+# pip-compile --generate-hashes). --require-hashes fails the build if any
+# downloaded file does not match the lock file.
+# Then remove pip itself: it is not used at runtime, and its vendored copies of
+# urllib3, msgpack and setuptools are what Trivy flags in the image.
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt \
+ && pip uninstall -y pip
 
-# Copy the source code directory into the container's working directory
+# Copy the source code. It stays root-owned (read-only for the app user), so a
+# compromised process cannot rewrite it.
 COPY statecraft/ ./statecraft/
 
 # Stamp the release version into the package. The publish workflow builds from
@@ -42,10 +49,7 @@ COPY statecraft/ ./statecraft/
 # would always report the previous version.
 RUN echo "__version__ = \"${STATECRAFT_VERSION}\"" > ./statecraft/version.py
 
-# Change ownership of the app directory to the non-root user
-# This is important if the entrypoint needs to write files (though our script writes outside /app)
-RUN chown -R appuser:appgroup /app
-# Switch to the non-root user
+# Switch to the non-root user (numeric, so the kubelet can verify runAsNonRoot)
 USER 1000:1000
 
 # Expose port for API server mode

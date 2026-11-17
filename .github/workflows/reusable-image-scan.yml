@@ -22,7 +22,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # Repo scan: lock files (pip, npm). .trivyignore in the repo root is picked up automatically.
       - name: Trivy repo scan (dependencies)
         id: trivy-fs
         continue-on-error: true
@@ -46,8 +45,8 @@ jobs:
           load: true
           tags: scan-target:${{ github.sha }}
           build-args: ${{ inputs.build-args }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=image-scan
+          cache-to: type=gha,scope=image-scan,mode=max
           platforms: linux/amd64
 
       - name: Trivy image scan
@@ -62,6 +61,7 @@ jobs:
           ignore-unfixed: true
           limit-severities-for-sarif: true
           exit-code: "1"
+          skip-setup-trivy: true
 
       - name: Upload Trivy repo results
         if: >-
@@ -83,8 +83,37 @@ jobs:
           sarif_file: trivy-image.sarif
           category: trivy-image
 
+      # SARIF is not readable in the log, and fork PRs cannot upload it, so on
+      # failure print the same findings as a table (DB is already cached).
+      - name: Show repo findings
+        if: steps.trivy-fs.outcome == 'failure'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Show image findings
+        if: steps.trivy-image.outcome == 'failure'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: scan-target:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+          skip-setup-trivy: true
+
       - name: Fail on vulnerabilities
         if: steps.trivy-fs.outcome == 'failure' || steps.trivy-image.outcome == 'failure'
+        env:
+          FS_OUTCOME: ${{ steps.trivy-fs.outcome }}
+          IMAGE_OUTCOME: ${{ steps.trivy-image.outcome }}
         run: |
-          echo "::error::Trivy found fixable HIGH/CRITICAL vulnerabilities (or a scan failed to run). repo scan: ${{ steps.trivy-fs.outcome }}, image scan: ${{ steps.trivy-image.outcome }}"
+          echo "::error::Trivy found fixable HIGH/CRITICAL vulnerabilities (or a scan failed to run). repo scan: ${FS_OUTCOME}, image scan: ${IMAGE_OUTCOME}"
           exit 1

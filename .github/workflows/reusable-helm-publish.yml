@@ -70,7 +70,7 @@ jobs:
           sed -i "s|^  repository:.*|  repository: ${{ inputs.registry }}/${{ inputs.image-name }}|" ${{ inputs.chart-path }}/values.yaml
           sed -i "s|^  tag:.*|  tag: \"${IMAGE_TAG}\"|" ${{ inputs.chart-path }}/values.yaml
 
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Package and Push Helm Chart
         run: |
