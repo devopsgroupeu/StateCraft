@@ -1,0 +1,20 @@
+# CI only: the default values plus every optional template switched on,
+# so kubeconform validates all of them.
+extraEnv:
+  - name: SERVICE_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: ci-service-token
+        key: SERVICE_TOKEN
+ingress:
+  enabled: true
+autoscaling:
+  enabled: true
+metrics:
+  enabled: true
+serviceMonitor:
+  enabled: true
+networkPolicy:
+  enabled: true
+podDisruptionBudget:
+  enabled: true
