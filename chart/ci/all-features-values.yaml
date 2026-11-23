@@ -18,3 +18,4 @@ networkPolicy:
   enabled: true
 podDisruptionBudget:
   enabled: true
+ingress: "broken"
