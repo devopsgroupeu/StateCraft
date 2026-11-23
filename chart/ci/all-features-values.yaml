@@ -18,5 +18,3 @@ networkPolicy:
   enabled: true
 podDisruptionBudget:
   enabled: true
-podSecurityContext:
-  runAsUser: "abc"
