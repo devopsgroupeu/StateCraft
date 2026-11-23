@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.9](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.8...v0.6.9) (2026-11-23)
+
+### 🏗️ Build System
+
+* **image:** supply chain gates, UID 1000 and hash-pinned dependencies (OP-191) ([#46](https://github.com/devopsgroupeu/StateCraft/issues/46)) ([30a04e6](https://github.com/devopsgroupeu/StateCraft/commit/30a04e66b40f4da384c53ca49b9ba0f419fe98b0))
+
 ## [0.6.8](https://github.com/devopsgroupeu/StateCraft/compare/v0.6.7...v0.6.8) (2026-11-13)
 
 ### 🏗️ Build System
