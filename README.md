@@ -143,6 +143,25 @@ For production, replace self-signed certificates with certificates from **Let's 
    - Monitor failed authentication attempts
    - Set up alerts for unusual resource creation patterns
 
+## 🔏 Supply chain
+
+Every release image published to `ghcr.io/devopsgroupeu/statecraft` carries:
+
+- a **keyless [cosign](https://github.com/sigstore/cosign) signature**, made by the release workflow with GitHub's OIDC identity (no long-lived signing key exists);
+- an **SBOM** (SPDX) and **build provenance**, attached to the image as attestations by BuildKit.
+
+Before a release is cut, CI builds the image from the same commit (linux/amd64) and scans it, together with the hash-pinned `requirements.txt`, with Trivy. A fixable HIGH or CRITICAL vulnerability stops the release. Pull requests run the same scan.
+
+### Verify the signature
+
+Use cosign v3.1.4 or newer (the release workflow signs with v3.1.4):
+
+```bash
+cosign verify ghcr.io/devopsgroupeu/statecraft:<version> \
+  --certificate-identity "https://github.com/devopsgroupeu/StateCraft/.github/workflows/reusable-docker-publish.yml@refs/heads/main" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 ## 📜 License
 
 ```
