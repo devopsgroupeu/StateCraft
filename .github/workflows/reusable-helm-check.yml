@@ -11,7 +11,7 @@ on:
       kubernetes-version:
         required: false
         type: string
-        default: "1.33.0"
+        default: "1.36.0"
         description: "Kubernetes version whose schemas kubeconform validates against; match the target clusters"
       api-versions:
         required: false
@@ -74,6 +74,6 @@ jobs:
               | kubeconform -strict -summary \
                   -kubernetes-version "${KUBERNETES_VERSION}" \
                   -schema-location default \
-                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/04af58d740718c4dc719441bf39fb284c784f4a8/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
             echo "::endgroup::"
           done
